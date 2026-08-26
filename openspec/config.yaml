@@ -1,0 +1,52 @@
+# openspec/config.yaml — SDD configuration for agent-analytics
+schema: spec-driven
+
+context: |
+  Product: analytics platform for OpenCode agents/skills usage (collector plugin -> UsageEvent contract -> HTTP API -> PostgreSQL/MySQL -> React dashboard).
+  Tech stack: TypeScript strict mode on Node.js; React dashboard; Jest; ESLint + Prettier. Stack is INTENDED (greenfield, no code yet).
+  Layout: npm-workspaces monorepo - apps/api, apps/dashboard, packages/{opencode-collector,event-schema,database,shared}, docker/, migrations/.
+  Database: engine chosen by installer via DATABASE env var; repository layer abstracts the engine; domain MUST stay engine-agnostic.
+  Architecture: Clean Architecture; domain/infrastructure separation; pure functions where possible; explicit DTOs; no `any`; minimal comments.
+  Session preflight: execution_mode=auto; artifact_store=openspec; delivery_strategy=ask-on-risk; review_budget_lines=400.
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - ask-on-risk delivery: only surface decisions to the user when risk is real; state defaults otherwise
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - UsageEvent contract changes require backward-compatibility analysis (collector <-> API coupling)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Database access designs MUST show how domain stays independent of PostgreSQL vs MySQL
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Keep each review slice within the 400-line review budget; split beyond it (see chained-pr)
+  apply:
+    guidelines:
+      - Follow existing code patterns
+      - TypeScript strict mode; no `any`; explicit DTOs; minimal comments
+      - Domain layer MUST NOT import from infrastructure (apps, drivers, DB clients)
+    tdd: false            # flip to true once Jest is installed (see testing.planned_commands)
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0 # raise once Jest with coverage lands
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  reason: "No test runner installed yet (empty greenfield project); Jest planned by product brief. Decision gate 'no test runner' applies."
+  detected: 2026-08-25
+  planned_runner: jest
+  planned_commands:
+    test: npx jest
+    coverage: npx jest --coverage
+    lint: npx eslint .
+    format_check: npx prettier --check .
+    typecheck: npx tsc --noEmit

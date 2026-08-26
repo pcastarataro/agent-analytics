@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "apps/api/src/**/*.ts",
+    "apps/dashboard/src/**/*.ts",
+    "packages/opencode-collector/src/**/*.ts",
+    "packages/event-schema/src/**/*.ts",
+    "packages/database/src/**/*.ts",
+    "packages/shared/src/**/*.ts"
+  ]
+}
