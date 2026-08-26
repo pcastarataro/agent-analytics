@@ -44,6 +44,10 @@ export function createHttpClient(
         clearTimeout(timeoutId);
 
         if (res.ok) return;
+        if (res.status >= 400 && res.status < 500) {
+          counters.dropped++;
+          return;
+        }
       } catch {
         clearTimeout(timeoutId);
       }

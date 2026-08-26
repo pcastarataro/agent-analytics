@@ -137,6 +137,13 @@ export const createPlugin = async ({
     const result = usageEventSchema.safeParse(event);
     if (result.success) {
       buffer.enqueue(result.data);
+    } else {
+      logFn({
+        service: 'opencode-collector',
+        level: 'warn',
+        message: `Invalid event dropped: ${result.error.message}`,
+      });
+      counters.dropped++;
     }
   }
 

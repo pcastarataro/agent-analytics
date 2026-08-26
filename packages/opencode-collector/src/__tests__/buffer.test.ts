@@ -243,7 +243,8 @@ describe('HttpClient', () => {
 
     await client.postBatch([makeEvent(1)]);
 
-    expect(fetchFn).toHaveBeenCalledTimes(5);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(counters.retried).toBe(0);
     expect(counters.dropped).toBe(1);
   });
 });
