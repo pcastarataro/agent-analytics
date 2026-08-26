@@ -1,0 +1,13 @@
+[
+  {
+    "version": "5",
+    "dialect": "postgresql",
+    "entries": [
+      {
+        "id": "0000_initial",
+        "hash": "initial_hash",
+        "createdAt": "2026-08-26T00:00:00.000Z"
+      }
+    ]
+  }
+]
