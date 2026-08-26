@@ -15,7 +15,7 @@ export function mapToolBefore(
   if (tool === 'skill') {
     return {
       skill: {
-        name: (args as Record<string, unknown> | undefined)?.name as string ?? 'unknown',
+        name: ((args as Record<string, unknown> | undefined)?.name as string) ?? 'unknown',
       },
       tool: { name: tool },
     };
@@ -82,15 +82,13 @@ export function mapToolPart(
   };
 }
 
-export function mapSkillComplete(
-  payload: {
-    skill: {
-      name: string;
-      version?: string;
-      definitionHash?: string;
-    };
-  },
-): Record<string, unknown> {
+export function mapSkillComplete(payload: {
+  skill: {
+    name: string;
+    version?: string;
+    definitionHash?: string;
+  };
+}): Record<string, unknown> {
   const { name, version, definitionHash } = payload.skill;
   return {
     skill: {

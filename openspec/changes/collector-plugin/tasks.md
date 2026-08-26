@@ -46,13 +46,13 @@ Chain strategy: stacked-to-main
 
 ## Phase 4: Entry + Wiring (PR 3)
 
-- [ ] 4.1 Replace `src/index.ts` with plugin factory: bootstrap `CollectorConfig` (env > `.opencode/analytics.json` > defaults → frozen); if `url` missing → `disabled=true`, single log; register all hooks wrapped in `withBoundary`; startup heartbeat via `client.app.log` naming registered hooks — **Acceptance**: config resolves in precedence order; missing URL disables; self-check log emitted; hooks never throw — spec: Configuration Resolution, Startup Self-Check, Non-Blocking Guarantee
-- [ ] 4.2 Create `.opencode/plugins/analytics.ts` shim: re-exports `createPlugin` from `../../packages/opencode-collector/src/index.ts` — **Acceptance**: Bun resolves shim when OpenCode loads local plugins — spec: In Scope (TS-source-first packaging)
+- [x] 4.1 Replace `src/index.ts` with plugin factory: bootstrap `CollectorConfig` (env > `.opencode/analytics.json` > defaults → frozen); if `url` missing → `disabled=true`, single log; register all hooks wrapped in `withBoundary`; startup heartbeat via `client.app.log` naming registered hooks — **Acceptance**: config resolves in precedence order; missing URL disables; self-check log emitted; hooks never throw — spec: Configuration Resolution, Startup Self-Check, Non-Blocking Guarantee
+- [x] 4.2 Create `.opencode/plugins/analytics.ts` shim: re-exports `createPlugin` from `../../packages/opencode-collector/src/index.ts` — **Acceptance**: Bun resolves shim when OpenCode loads local plugins — spec: In Scope (TS-source-first packaging)
 
 ## Phase 5: Smoke Test (PR 3)
 
-- [ ] 5.1 Create `src/__tests__/smoke.test.ts`: start `node:http` mock server on ephemeral port; set `OPENCODE_CONFIG_DIR` to fixture dir; spawn `opencode run` with trivial prompt; assert ≥1 schema-valid batch POSTed; guard with `describe.skipIf(!hasOpencodeBinary)` — **Acceptance**: mock receives ≥1 valid batch; test skips when binary absent — spec: Smoke Integration Test, End-to-end proven, Binary absent
-- [ ] 5.2 Run `npx jest packages/opencode-collector` — confirm all suites (mappers + buffer + smoke) pass — **Acceptance**: green output; at least one case per spec scenario — spec: Tested Contract, Suite proves the contract
+- [x] 5.1 Create `src/__tests__/smoke.test.ts`: start `node:http` mock server on ephemeral port; set `OPENCODE_CONFIG_DIR` to fixture dir; spawn `opencode run` with trivial prompt; assert ≥1 schema-valid batch POSTed; guard with `describe.skipIf(!hasOpencodeBinary)` — **Acceptance**: mock receives ≥1 valid batch; test skips when binary absent — spec: Smoke Integration Test, End-to-end proven, Binary absent
+- [x] 5.2 Run `npx jest packages/opencode-collector` — confirm all suites (mappers + buffer + smoke) pass — **Acceptance**: green output; at least one case per spec scenario — spec: Tested Contract, Suite proves the contract
 
 ## Traceability Matrix
 

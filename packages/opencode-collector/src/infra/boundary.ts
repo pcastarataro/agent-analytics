@@ -2,10 +2,7 @@ export interface BoundaryDeps {
   log: (entry: { service: string; level: string; message: string }) => void;
 }
 
-export function withBoundary<T extends (...args: unknown[]) => void>(
-  fn: T,
-  deps: BoundaryDeps,
-): T {
+export function withBoundary<T extends (...args: unknown[]) => void>(fn: T, deps: BoundaryDeps): T {
   let errorCount = 0;
   return ((...args: unknown[]) => {
     try {
