@@ -23,11 +23,7 @@ export function createApp(config: ApiConfig, repository: EventRepository) {
 
   app.use(authStub);
 
-  app.use(
-    '/v1/events/batch',
-    validateBody(z.array(z.unknown())),
-    createEventRoutes(repository),
-  );
+  app.use('/v1/events/batch', validateBody(z.array(z.unknown())), createEventRoutes(repository));
   app.use('/v1/events', createEventRoutes(repository));
   app.use('/v1/stats', createStatsRoutes(repository));
 

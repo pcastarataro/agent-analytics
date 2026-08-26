@@ -40,7 +40,10 @@ export function createEventRoutes(repository: EventRepository): Router {
   router.get('/', (req, res, next) => {
     void (async () => {
       try {
-        const { limit, cursor, agentName, sessionId, status, from, to } = req.query as Record<string, string | undefined>;
+        const { limit, cursor, agentName, sessionId, status, from, to } = req.query as Record<
+          string,
+          string | undefined
+        >;
 
         const filters: EventFilters = {};
         if (agentName !== undefined) filters.agentName = agentName;

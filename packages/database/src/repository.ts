@@ -30,7 +30,10 @@ export interface EventRepository {
   insertBatch(events: UsageEvent[]): Promise<number>;
   findById(id: string): Promise<UsageEvent | null>;
   findAll(filters: EventFilters, pagination: Pagination): Promise<PaginatedResult<UsageEvent>>;
-  countByGroup(groupBy: 'agentName' | 'sessionId' | 'status', filters?: DateFilters): Promise<Record<string, number>>;
+  countByGroup(
+    groupBy: 'agentName' | 'sessionId' | 'status',
+    filters?: DateFilters,
+  ): Promise<Record<string, number>>;
   countByDate(filters?: DateFilters): Promise<Record<string, number>>;
 }
 
@@ -97,19 +100,12 @@ export function createDrizzleRepository(
     async insertBatch(events: UsageEvent[]): Promise<number> {
       if (events.length === 0) return 0;
       const rows = events.map(toRow);
-      await db
-        .insert(usageEvents)
-        .values(rows)
-        .onConflictDoNothing({ target: usageEvents.id });
+      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.id });
       return rows.length;
     },
 
     async findById(id: string): Promise<UsageEvent | null> {
-      const [row] = await db
-        .select()
-        .from(usageEvents)
-        .where(eq(usageEvents.id, id))
-        .limit(1);
+      const [row] = await db.select().from(usageEvents).where(eq(usageEvents.id, id)).limit(1);
       return row !== undefined ? toEvent(row) : null;
     },
 
@@ -120,14 +116,12 @@ export function createDrizzleRepository(
       const whereClause = buildWhereClause(filters);
 
       const cursorCondition =
-        pagination.cursor !== undefined
-          ? sql`${usageEvents.id} > ${pagination.cursor}`
-          : undefined;
+        pagination.cursor !== undefined ? sql`${usageEvents.id} > ${pagination.cursor}` : undefined;
 
       const combinedWhere =
         whereClause !== undefined && cursorCondition !== undefined
           ? and(whereClause, cursorCondition)
-          : whereClause ?? cursorCondition;
+          : (whereClause ?? cursorCondition);
 
       const baseQuery = db
         .select()
@@ -136,9 +130,7 @@ export function createDrizzleRepository(
         .limit(pagination.limit + 1);
 
       const rows =
-        combinedWhere !== undefined
-          ? await baseQuery.where(combinedWhere)
-          : await baseQuery;
+        combinedWhere !== undefined ? await baseQuery.where(combinedWhere) : await baseQuery;
 
       const hasMore = rows.length > pagination.limit;
       const data = rows.slice(0, pagination.limit).map(toEvent);
@@ -174,10 +166,7 @@ export function createDrizzleRepository(
         .from(usageEvents)
         .groupBy(column);
 
-      const rows =
-        whereClause !== undefined
-          ? await baseQuery.where(whereClause)
-          : await baseQuery;
+      const rows = whereClause !== undefined ? await baseQuery.where(whereClause) : await baseQuery;
 
       const result: Record<string, number> = {};
       for (const row of rows) {
@@ -205,10 +194,7 @@ export function createDrizzleRepository(
         .groupBy(dateColumn)
         .orderBy(dateColumn);
 
-      const rows =
-        whereClause !== undefined
-          ? await baseQuery.where(whereClause)
-          : await baseQuery;
+      const rows = whereClause !== undefined ? await baseQuery.where(whereClause) : await baseQuery;
 
       const result: Record<string, number> = {};
       for (const row of rows) {

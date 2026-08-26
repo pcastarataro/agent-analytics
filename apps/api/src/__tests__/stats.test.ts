@@ -74,9 +74,7 @@ describe('GET /v1/stats/overview', () => {
   it('returns empty result when no events match', async () => {
     const { default: request } = await import('supertest');
 
-    (repo.countByGroup as jest.Mock)
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({});
+    (repo.countByGroup as jest.Mock).mockResolvedValueOnce({}).mockResolvedValueOnce({});
     (repo.countByDate as jest.Mock).mockResolvedValue({});
 
     const res = await request(app).get('/v1/stats/overview');

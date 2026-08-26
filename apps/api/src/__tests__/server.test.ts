@@ -8,7 +8,9 @@ function createMockRepository(): EventRepository {
   return {
     insertBatch: jest.fn().mockResolvedValue(0),
     findById: jest.fn().mockResolvedValue(null),
-    findAll: jest.fn().mockResolvedValue({ data: [], nextCursor: null } satisfies PaginatedResult<UsageEvent>),
+    findAll: jest
+      .fn()
+      .mockResolvedValue({ data: [], nextCursor: null } satisfies PaginatedResult<UsageEvent>),
     countByGroup: jest.fn().mockResolvedValue({}),
     countByDate: jest.fn().mockResolvedValue({}),
   };
@@ -37,17 +39,13 @@ describe('API Server', () => {
 
   it('rejects non-array body on POST /v1/events/batch', async () => {
     const { default: request } = await import('supertest');
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .send({ not: 'an array' });
+    const res = await request(app).post('/v1/events/batch').send({ not: 'an array' });
     expect(res.status).toBe(400);
   });
 
   it('accepts empty array on POST /v1/events/batch', async () => {
     const { default: request } = await import('supertest');
-    const res = await request(app)
-      .post('/v1/events/batch')
-      .send([]);
+    const res = await request(app).post('/v1/events/batch').send([]);
     expect(res.status).toBe(201);
     expect(res.body).toEqual({ accepted: 0 });
   });

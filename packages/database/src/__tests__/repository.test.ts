@@ -9,8 +9,7 @@ import { usageEvents } from '../schema';
 import { createDrizzleRepository, type EventRepository } from '../repository';
 
 const DATABASE_URL =
-  process.env['DATABASE_URL'] ??
-  'postgresql://postgres:postgres@localhost:5432/agent_analytics';
+  process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@localhost:5432/agent_analytics';
 
 let client: ReturnType<typeof postgres>;
 let db: ReturnType<typeof drizzle<Record<string, never>>>;
@@ -38,8 +37,12 @@ beforeAll(async () => {
     "timestamp" timestamp with time zone,
     "status" text
   )`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_agent_name" ON "usage_events" ("agent_name")`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_session_id" ON "usage_events" ("session_id")`);
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS "idx_agent_name" ON "usage_events" ("agent_name")`,
+  );
+  await db.execute(
+    sql`CREATE INDEX IF NOT EXISTS "idx_session_id" ON "usage_events" ("session_id")`,
+  );
   await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_timestamp" ON "usage_events" ("timestamp")`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_status" ON "usage_events" ("status")`);
 });
@@ -90,9 +93,7 @@ describe('EventRepository', () => {
       const count = await repo.insertBatch([event]);
       expect(count).toBe(1);
 
-      const result = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(usageEvents);
+      const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
       expect(result[0]!.count).toBe(1);
     });
   });
@@ -132,8 +133,14 @@ describe('EventRepository', () => {
 
     it('filters by agentName', async () => {
       await repo.insertBatch([
-        makeEvent({ id: '0192e000-1000-7000-8000-000000000001', agent: { name: 'agent-a' } as UsageEvent['agent'] }),
-        makeEvent({ id: '0192e000-1000-7000-8000-000000000002', agent: { name: 'agent-b' } as UsageEvent['agent'] }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'agent-b' } as UsageEvent['agent'],
+        }),
       ]);
 
       const result = await repo.findAll({ agentName: 'agent-a' }, { limit: 10 });
@@ -156,9 +163,18 @@ describe('EventRepository', () => {
   describe('countByGroup', () => {
     it('counts by agentName', async () => {
       await repo.insertBatch([
-        makeEvent({ id: '0192e000-1000-7000-8000-000000000001', agent: { name: 'agent-a' } as UsageEvent['agent'] }),
-        makeEvent({ id: '0192e000-1000-7000-8000-000000000002', agent: { name: 'agent-a' } as UsageEvent['agent'] }),
-        makeEvent({ id: '0192e000-1000-7000-8000-000000000003', agent: { name: 'agent-b' } as UsageEvent['agent'] }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000003',
+          agent: { name: 'agent-b' } as UsageEvent['agent'],
+        }),
       ]);
 
       const counts = await repo.countByGroup('agentName');
@@ -184,7 +200,13 @@ describe('EventRepository', () => {
         skill: { name: 'skill-99', version: '1.0.0', definitionHash: 'def456' },
         tool: { name: 'tool-99' },
         model: { name: 'claude-3' },
-        metrics: { durationMs: 5000, inputTokens: 500, outputTokens: 200, cachedTokens: 50, cost: 0.15 },
+        metrics: {
+          durationMs: 5000,
+          inputTokens: 500,
+          outputTokens: 200,
+          cachedTokens: 50,
+          cost: 0.15,
+        },
         result: { status: 'success' },
       });
 

@@ -9,11 +9,7 @@ export interface ValidationError extends ApiError {
   details?: Array<{ path: string; message: string }>;
 }
 
-export function createApiError(
-  status: number,
-  message: string,
-  details?: unknown,
-): ApiError {
+export function createApiError(status: number, message: string, details?: unknown): ApiError {
   return { status, message, details };
 }
 
