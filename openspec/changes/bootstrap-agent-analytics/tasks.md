@@ -53,9 +53,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: Verification + Single Initial Commit
 
-- [ ] 5.1 From pristine tree, all four root commands exit 0: `tsc --noEmit`, `eslint .`, `prettier --check .`, `jest`. AC: ms:four-commands-pass.
-- [ ] 5.2 Negative controls (temp files, removed after): implicit-`any` + unchecked-index source fails typecheck; lint/format violation exits non-zero naming file. AC: ms:violation-fails-loudly + ms:strictness-enforced.
-- [ ] 5.3 Verify zero deferred-capability modules exist (collector plugin, API server, DB, dashboard, CI, Docker). AC: ms:skeleton-integrity clause.
+- [x] 5.1 From pristine tree, all four root commands exit 0: `tsc --noEmit`, `eslint .`, `prettier --check .`, `jest`. AC: ms:four-commands-pass.
+- [x] 5.2 Negative controls (temp files, removed after): implicit-`any` + unchecked-index source fails typecheck; lint/format violation exits non-zero naming file. AC: ms:violation-fails-loudly + ms:strictness-enforced.
+- [x] 5.3 Verify zero deferred-capability modules exist (collector plugin, API server, DB, dashboard, CI, Docker). AC: ms:skeleton-integrity clause.
 - [ ] 5.4 ~~`git init` → add -A → exactly ONE conventional commit `feat: bootstrap monorepo scaffold and canonical UsageEvent schema`~~ **SUPERSEDED BY APPROVED CHAINED SPLIT** (maintainer-approved, stacked-to-main): PR1 squash-merges so main's history BEGINS with exactly ONE conventional scaffold commit `feat: bootstrap monorepo scaffold`; canonical UsageEvent lands in later PR commits (B1/B2). Existing `openspec/` rides along tracked. AC: ms:one-clean-commit + ms:untracked-generated — satisfied via squash-merge of PR1.
 
 ## Traceability Matrix (scenario → task ids)
