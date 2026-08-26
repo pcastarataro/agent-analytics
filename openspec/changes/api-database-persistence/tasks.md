@@ -54,6 +54,16 @@ Chain strategy: stacked-to-main
 - [x] 3.2 Add stats tests to `apps/api/src/__tests__/events.test.ts` (or new `stats.test.ts`): full overview aggregation, date-range scoped, empty result.
 - [x] 3.3 Verify full pipeline: `npm test` across all workspaces passes, `npx tsc --noEmit` clean.
 
+## Phase 4: Verification
+
+- [x] 4.1 Run `npx tsc --noEmit`, `npx eslint .`, `npx prettier --check .`, `npx jest` — record exit codes and suite/test totals.
+- [x] 4.2 Run focused API tests: `npx jest apps/api` — 4/4 suites, 14/14 tests passed.
+- [x] 4.3 Run focused DB tests: `npx jest packages/database` — 1/2 suites passed; 12 tests require Docker PostgreSQL.
+- [x] 4.4 Scenario-level audit: walk all 24 Given/When/Then scenarios — 16 COMPLIANT, 6 COVERED-BY-CODE, 2 UNTESTED.
+- [x] 4.5 Negative control: tsc strict on project — verified project compiles clean with strict settings.
+- [x] 4.6 Write verify-report.md with evidence and final verdict.
+- [x] 4.7 Save verify report to Engram.
+
 ## Traceability Matrix
 
 | Spec Requirement | Scenario | Task(s) |
