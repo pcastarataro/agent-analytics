@@ -25,9 +25,7 @@ function createTestConfig(overrides?: Partial<CollectorConfig>): CollectorConfig
   };
 }
 
-function createContext(
-  overrides?: Partial<ExecutionContext>,
-): ExecutionContext {
+function createContext(overrides?: Partial<ExecutionContext>): ExecutionContext {
   return {
     sessionId: ROOT_ID,
     traceId: ROOT_ID,
@@ -56,11 +54,7 @@ describe('Session Mapper', () => {
       FIXTURES.sessionCreatedChild,
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
         mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
-        const childCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedChild,
-          executions,
-          edges,
-        );
+        const childCtx = mapSessionCreated(FIXTURES.sessionCreatedChild, executions, edges);
         expect(childCtx.traceId).toBe(ROOT_ID);
         expect(childCtx.parentId).toBe(ROOT_ID);
         expect(childCtx.sessionId).toBe(CHILD_ID);
@@ -72,11 +66,7 @@ describe('Session Mapper', () => {
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
         mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
         mapSessionCreated(FIXTURES.sessionCreatedChild, executions, edges);
-        const gcCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedGrandchild,
-          executions,
-          edges,
-        );
+        const gcCtx = mapSessionCreated(FIXTURES.sessionCreatedGrandchild, executions, edges);
         expect(gcCtx.traceId).toBe(ROOT_ID);
         expect(gcCtx.parentId).toBe(CHILD_ID);
         expect(gcCtx.sessionId).toBe(GRANDCHILD_ID);
@@ -87,11 +77,7 @@ describe('Session Mapper', () => {
       FIXTURES.sessionCreatedChild,
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
         mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
-        const childCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedChild,
-          executions,
-          edges,
-        );
+        const childCtx = mapSessionCreated(FIXTURES.sessionCreatedChild, executions, edges);
         expect(childCtx.traceId).not.toBe(CHILD_ID);
         expect(childCtx.traceId).toBe(ROOT_ID);
       },
@@ -100,16 +86,8 @@ describe('Session Mapper', () => {
       'parentId set on child, absent on root',
       FIXTURES.sessionCreatedChild,
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
-        const rootCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedRoot,
-          executions,
-          edges,
-        );
-        const childCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedChild,
-          executions,
-          edges,
-        );
+        const rootCtx = mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
+        const childCtx = mapSessionCreated(FIXTURES.sessionCreatedChild, executions, edges);
         expect(rootCtx.parentId).toBeUndefined();
         expect(childCtx.parentId).toBe(ROOT_ID);
       },
@@ -119,11 +97,7 @@ describe('Session Mapper', () => {
       FIXTURES.sessionCreatedChild,
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
         mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
-        const childCtx = mapSessionCreated(
-          FIXTURES.sessionCreatedChild,
-          executions,
-          edges,
-        );
+        const childCtx = mapSessionCreated(FIXTURES.sessionCreatedChild, executions, edges);
         expect(childCtx.sessionId).toBe(CHILD_ID);
         expect(childCtx.traceId).toBe(ROOT_ID);
         const rootCtx = executions.get(ROOT_ID)!;
@@ -157,9 +131,7 @@ describe('Message Mapper', () => {
         createTestConfig(),
         (result: Record<string, unknown>) => {
           const encoder = new TextEncoder();
-          const expectedBytes = encoder.encode(
-            FIXTURES.userMessage.message.text,
-          ).length;
+          const expectedBytes = encoder.encode(FIXTURES.userMessage.message.text).length;
           expect(result.promptLength).toBe(expectedBytes);
         },
       ],
@@ -349,9 +321,7 @@ describe('Tool-Skill Mapper', () => {
         FIXTURES.toolExecuteAfterSuccess,
         (result: Record<string, unknown>) => {
           expect(result.metrics).toHaveProperty('durationMs');
-          expect(
-            typeof (result.metrics as Record<string, unknown>).durationMs,
-          ).toBe('number');
+          expect(typeof (result.metrics as Record<string, unknown>).durationMs).toBe('number');
         },
       ],
     ])('%s', (_name, payload, assertion) => {

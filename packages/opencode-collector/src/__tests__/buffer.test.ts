@@ -42,8 +42,9 @@ describe('EventBuffer', () => {
   it('flushes when buffer reaches 100 events', async () => {
     const sent: UsageEvent[][] = [];
     const buffer = createEventBuffer({
-      flushFn: async (events) => { sent.push(events); },
-      clockFn: () => Date.now(),
+      flushFn: async (events) => {
+        sent.push(events);
+      },
     });
 
     for (let i = 0; i < 99; i++) {
@@ -63,8 +64,9 @@ describe('EventBuffer', () => {
   it('timer flushes after 1s interval', async () => {
     const sent: UsageEvent[][] = [];
     const buffer = createEventBuffer({
-      flushFn: async (events) => { sent.push(events); },
-      clockFn: () => Date.now(),
+      flushFn: async (events) => {
+        sent.push(events);
+      },
     });
 
     buffer.enqueue(makeEvent(1));
@@ -83,8 +85,9 @@ describe('EventBuffer', () => {
   it('drops oldest when queue exceeds 10k bound', async () => {
     const sent: UsageEvent[][] = [];
     const buffer = createEventBuffer({
-      flushFn: async (events) => { sent.push(events); },
-      clockFn: () => Date.now(),
+      flushFn: async (events) => {
+        sent.push(events);
+      },
     });
 
     for (let i = 0; i < 10_000; i++) {
@@ -105,8 +108,9 @@ describe('EventBuffer', () => {
   it('dispose drains remaining events', async () => {
     const sent: UsageEvent[][] = [];
     const buffer = createEventBuffer({
-      flushFn: async (events) => { sent.push(events); },
-      clockFn: () => Date.now(),
+      flushFn: async (events) => {
+        sent.push(events);
+      },
     });
 
     buffer.enqueue(makeEvent(1));
@@ -122,8 +126,9 @@ describe('EventBuffer', () => {
   it('session idle triggers flush', async () => {
     const sent: UsageEvent[][] = [];
     const buffer = createEventBuffer({
-      flushFn: async (events) => { sent.push(events); },
-      clockFn: () => Date.now(),
+      flushFn: async (events) => {
+        sent.push(events);
+      },
     });
 
     buffer.enqueue(makeEvent(1));
@@ -148,11 +153,14 @@ describe('HttpClient', () => {
 
     const config = makeConfig();
     const counters = { dropped: 0, retried: 0 };
-    const client = createHttpClient(config, {
-      fetchFn,
-      clockFn: () => Date.now(),
-      sleepFn: jest.fn().mockResolvedValue(undefined),
-    }, counters);
+    const client = createHttpClient(
+      config,
+      {
+        fetchFn,
+        sleepFn: jest.fn().mockResolvedValue(undefined),
+      },
+      counters,
+    );
 
     const events = [makeEvent(1), makeEvent(2)];
     await client.postBatch(events);
@@ -173,15 +181,20 @@ describe('HttpClient', () => {
   });
 
   it('retries on 5xx then drops after 5 attempts', async () => {
-    const fetchFn = jest.fn(async () => new Response(null, { status: 500 })) as unknown as typeof fetch;
+    const fetchFn = jest.fn(
+      async () => new Response(null, { status: 500 }),
+    ) as unknown as typeof fetch;
 
     const config = makeConfig();
     const counters = { dropped: 0, retried: 0 };
-    const client = createHttpClient(config, {
-      fetchFn,
-      clockFn: () => Date.now(),
-      sleepFn: jest.fn().mockResolvedValue(undefined),
-    }, counters);
+    const client = createHttpClient(
+      config,
+      {
+        fetchFn,
+        sleepFn: jest.fn().mockResolvedValue(undefined),
+      },
+      counters,
+    );
 
     await client.postBatch([makeEvent(1)]);
 
@@ -197,11 +210,14 @@ describe('HttpClient', () => {
 
     const config = makeConfig();
     const counters = { dropped: 0, retried: 0 };
-    const client = createHttpClient(config, {
-      fetchFn,
-      clockFn: () => Date.now(),
-      sleepFn: jest.fn().mockResolvedValue(undefined),
-    }, counters);
+    const client = createHttpClient(
+      config,
+      {
+        fetchFn,
+        sleepFn: jest.fn().mockResolvedValue(undefined),
+      },
+      counters,
+    );
 
     await client.postBatch([makeEvent(1)]);
 
@@ -210,15 +226,20 @@ describe('HttpClient', () => {
   });
 
   it('drops batch immediately on 4xx without retry', async () => {
-    const fetchFn = jest.fn(async () => new Response(null, { status: 400 })) as unknown as typeof fetch;
+    const fetchFn = jest.fn(
+      async () => new Response(null, { status: 400 }),
+    ) as unknown as typeof fetch;
 
     const config = makeConfig();
     const counters = { dropped: 0, retried: 0 };
-    const client = createHttpClient(config, {
-      fetchFn,
-      clockFn: () => Date.now(),
-      sleepFn: jest.fn().mockResolvedValue(undefined),
-    }, counters);
+    const client = createHttpClient(
+      config,
+      {
+        fetchFn,
+        sleepFn: jest.fn().mockResolvedValue(undefined),
+      },
+      counters,
+    );
 
     await client.postBatch([makeEvent(1)]);
 
@@ -230,9 +251,15 @@ describe('HttpClient', () => {
 describe('withBoundary', () => {
   it('catches mapper throw and logs first 3 errors', () => {
     const logs: Array<{ service: string; level: string; message: string }> = [];
-    const deps = { log: (entry: { service: string; level: string; message: string }) => { logs.push(entry); } };
+    const deps = {
+      log: (entry: { service: string; level: string; message: string }) => {
+        logs.push(entry);
+      },
+    };
 
-    const throwingFn = () => { throw new Error('mapper failed'); };
+    const throwingFn = () => {
+      throw new Error('mapper failed');
+    };
     const wrapped = withBoundary(throwingFn, deps);
 
     expect(() => wrapped()).not.toThrow();
@@ -258,9 +285,15 @@ describe('withBoundary', () => {
 
   it('suppresses logs after first 3 errors', () => {
     const logs: Array<{ service: string; level: string; message: string }> = [];
-    const deps = { log: (entry: { service: string; level: string; message: string }) => { logs.push(entry); } };
+    const deps = {
+      log: (entry: { service: string; level: string; message: string }) => {
+        logs.push(entry);
+      },
+    };
 
-    const throwingFn = () => { throw new Error('fail'); };
+    const throwingFn = () => {
+      throw new Error('fail');
+    };
     const wrapped = withBoundary(throwingFn, deps);
 
     for (let i = 0; i < 10; i++) {

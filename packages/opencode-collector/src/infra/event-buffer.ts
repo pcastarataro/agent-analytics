@@ -7,7 +7,6 @@ export interface BufferCounters {
 
 export interface EventBufferDeps {
   flushFn: (events: UsageEvent[]) => Promise<void>;
-  clockFn: () => number;
 }
 
 const QUEUE_BOUND = 10_000;
@@ -15,7 +14,7 @@ const FLUSH_THRESHOLD = 100;
 const FLUSH_INTERVAL_MS = 1_000;
 
 export function createEventBuffer(deps: EventBufferDeps) {
-  const { flushFn, clockFn } = deps;
+  const { flushFn } = deps;
   const buffer: UsageEvent[] = [];
   const counters: BufferCounters = { dropped: 0, retried: 0 };
   let timerId: ReturnType<typeof setInterval> | null = null;

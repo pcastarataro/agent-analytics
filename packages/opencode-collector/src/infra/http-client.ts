@@ -3,7 +3,6 @@ import type { CollectorConfig } from '../domain/config-schema';
 
 export interface HttpClientDeps {
   fetchFn: typeof fetch;
-  clockFn: () => number;
   sleepFn: (ms: number) => Promise<void>;
 }
 
@@ -22,18 +21,14 @@ export function createHttpClient(
   deps: HttpClientDeps,
   counters: HttpClientCounters,
 ) {
-  const { fetchFn, clockFn, sleepFn } = deps;
+  const { fetchFn, sleepFn } = deps;
 
   async function postBatch(events: UsageEvent[]): Promise<void> {
     const body = JSON.stringify({ events });
-    let lastError: unknown;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT_MS,
-      );
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
       try {
         const res = await fetchFn(`${config.url}/v1/events/batch`, {
@@ -49,11 +44,8 @@ export function createHttpClient(
         clearTimeout(timeoutId);
 
         if (res.ok) return;
-
-        lastError = new Error(`HTTP ${res.status}`);
-      } catch (err) {
+      } catch {
         clearTimeout(timeoutId);
-        lastError = err;
       }
 
       if (attempt < MAX_RETRIES - 1) {
