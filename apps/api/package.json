@@ -5,7 +5,17 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@agent-analytics/database": "*",
     "@agent-analytics/event-schema": "*",
-    "@agent-analytics/shared": "*"
+    "@agent-analytics/shared": "*",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "zod": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
   }
 }
