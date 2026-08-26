@@ -41,9 +41,9 @@ Chain strategy: pending
 
 ## Phase 3: UsageEvent Contract Source (slice B1)
 
-- [ ] 3.1 `src/ids.ts`: `UuidV7Schema = z.uuidv7()` native validator (D9). AC: ue:id-rule.
-- [ ] 3.2 `src/schemas.ts`: ten group schemas as `z.looseObject` (actor…result); `usageEventSchema = z.strictObject` allowing EXACTLY `id` + the ten groups (D10); exported `UsageEvent`/`EventStatus` inferred from schema (no hand-maintained duplicate); enforce spec field table (traceId+userId+name required; parentId/version?/definitionHash? optional; metrics optional numbers; status enum success|error|cancelled); pure-domain — sole dep zod, no I/O. Public barrel in `src/index.ts`. AC: ue:minimal-accepted, ue:unknown-top-key, ue:missing-field.
-- [ ] 3.3 `__tests__/schemas.test.ts`: full valid fixture round-trips; unknown top-level key rejected and named; missing `result.status` reports that path; bad UUIDv7 + string `cost` rejected; valid UUIDv7 + traceId=root session without parentId accepted. AC: ue:Contract×3 + ue:Fields×2.
+- [x] 3.1 `src/ids.ts`: `UuidV7Schema = z.uuidv7()` native validator (D9). AC: ue:id-rule.
+- [x] 3.2 `src/schemas.ts`: ten group schemas as `z.looseObject` (actor…result); `usageEventSchema = z.strictObject` allowing EXACTLY `id` + the ten groups (D10); exported `UsageEvent`/`EventStatus` inferred from schema (no hand-maintained duplicate); enforce spec field table (traceId+userId+name required; parentId/version?/definitionHash? optional; metrics optional numbers; status enum success|error|cancelled); pure-domain — sole dep zod, no I/O. Public barrel in `src/index.ts`. AC: ue:minimal-accepted, ue:unknown-top-key, ue:missing-field.
+- [x] 3.3 `__tests__/schemas.test.ts`: full valid fixture round-trips; unknown top-level key rejected and named; missing `result.status` reports that path; bad UUIDv7 + string `cost` rejected; valid UUIDv7 + traceId=root session without parentId accepted. AC: ue:Contract×3 + ue:Fields×2.
 
 ## Phase 4: Pure Helpers + Remaining Tests (slice B2)
 
