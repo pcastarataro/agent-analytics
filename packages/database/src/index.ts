@@ -1,7 +1,15 @@
-import { SHARED_PACKAGE_NAME } from '@agent-analytics/shared';
+export { usageEvents, type UsageEventRow, type UsageEventInsert } from './schema';
+export {
+  createDrizzleRepository,
+  type EventRepository,
+  type EventFilters,
+  type DateFilters,
+  type Pagination,
+  type PaginatedResult,
+} from './repository';
 
 export const DATABASE_PACKAGE_NAME = '@agent-analytics/database';
 
 export function dependencyPackageNames(): string[] {
-  return [SHARED_PACKAGE_NAME];
+  return ['@agent-analytics/shared', '@agent-analytics/event-schema'];
 }
