@@ -21,6 +21,7 @@ function createMockRepository(): EventRepository {
       return { data, nextCursor } satisfies PaginatedResult<UsageEvent>;
     }),
     countByGroup: jest.fn().mockResolvedValue({}),
+    countByDate: jest.fn().mockResolvedValue({}),
   };
 }
 

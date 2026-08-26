@@ -50,9 +50,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: Stats + Polish
 
-- [ ] 3.1 Create `apps/api/src/routes/stats.ts`: `GET /v1/stats/overview` — aggregate counts by agentName, status, date; accept from/to date range filters. Ref: spec req "Stats Overview" scenarios "Full overview", "Scoped to date range", "Empty result".
-- [ ] 3.2 Add stats tests to `apps/api/src/__tests__/events.test.ts` (or new `stats.test.ts`): full overview aggregation, date-range scoped, empty result.
-- [ ] 3.3 Verify full pipeline: `npm test` across all workspaces passes, `npx tsc --noEmit` clean.
+- [x] 3.1 Create `apps/api/src/routes/stats.ts`: `GET /v1/stats/overview` — aggregate counts by agentName, status, date; accept from/to date range filters. Ref: spec req "Stats Overview" scenarios "Full overview", "Scoped to date range", "Empty result".
+- [x] 3.2 Add stats tests to `apps/api/src/__tests__/events.test.ts` (or new `stats.test.ts`): full overview aggregation, date-range scoped, empty result.
+- [x] 3.3 Verify full pipeline: `npm test` across all workspaces passes, `npx tsc --noEmit` clean.
 
 ## Traceability Matrix
 
