@@ -1,4 +1,4 @@
-import type { EventRepository, PaginatedResult, EventFilters, Pagination, DateFilters } from '@agent-analytics/database';
+import type { EventRepository, PaginatedResult } from '@agent-analytics/database';
 import type { UsageEvent } from '@agent-analytics/event-schema';
 
 import { createApp } from '../server';
@@ -10,6 +10,7 @@ function createMockRepository(): EventRepository {
     findById: jest.fn().mockResolvedValue(null),
     findAll: jest.fn().mockResolvedValue({ data: [], nextCursor: null } satisfies PaginatedResult<UsageEvent>),
     countByGroup: jest.fn().mockResolvedValue({}),
+    countByDate: jest.fn().mockResolvedValue({}),
   };
 }
 

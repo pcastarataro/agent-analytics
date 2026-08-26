@@ -8,6 +8,7 @@ import { authStub } from './middleware/auth';
 import { errorHandler } from './middleware/error-handler';
 import { validateBody } from './middleware/validate';
 import { createEventRoutes } from './routes/events';
+import { createStatsRoutes } from './routes/stats';
 import type { ApiConfig } from './config';
 
 export function createApp(config: ApiConfig, repository: EventRepository) {
@@ -28,6 +29,7 @@ export function createApp(config: ApiConfig, repository: EventRepository) {
     createEventRoutes(repository),
   );
   app.use('/v1/events', createEventRoutes(repository));
+  app.use('/v1/stats', createStatsRoutes(repository));
 
   app.use(errorHandler);
 

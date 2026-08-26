@@ -31,6 +31,7 @@ export interface EventRepository {
   findById(id: string): Promise<UsageEvent | null>;
   findAll(filters: EventFilters, pagination: Pagination): Promise<PaginatedResult<UsageEvent>>;
   countByGroup(groupBy: 'agentName' | 'sessionId' | 'status', filters?: DateFilters): Promise<Record<string, number>>;
+  countByDate(filters?: DateFilters): Promise<Record<string, number>>;
 }
 
 function toRow(event: UsageEvent): UsageEventInsert {
@@ -181,6 +182,37 @@ export function createDrizzleRepository(
       const result: Record<string, number> = {};
       for (const row of rows) {
         result[row.key ?? 'unknown'] = row.count;
+      }
+      return result;
+    },
+
+    async countByDate(filters?: DateFilters): Promise<Record<string, number>> {
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const baseQuery = db
+        .select({ key: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const rows =
+        whereClause !== undefined
+          ? await baseQuery.where(whereClause)
+          : await baseQuery;
+
+      const result: Record<string, number> = {};
+      for (const row of rows) {
+        result[row.key] = row.count;
       }
       return result;
     },
