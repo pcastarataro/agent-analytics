@@ -11,11 +11,11 @@ Legend: `ms:`/`ue:` = delta-spec requirement/scenario refs; `D#` = design decisi
 | Chained PRs recommended | Yes |
 | Suggested split | PR1=A configs+workspaces · PR2=B1 schema contract+tests · PR3=B2 helpers+tests |
 | Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Chain strategy | stacked-to-main (resolved by maintainer preflight) |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: stacked-to-main
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -47,9 +47,9 @@ Chain strategy: pending
 
 ## Phase 4: Pure Helpers + Remaining Tests (slice B2)
 
-- [ ] 4.1 `src/normalize.ts` per design signatures: `resolveStatus` (null/undefined→success; MessageAbortedError→cancelled; any other error→error); `resolveDefinitionVersion` (first defined candidate ?? `'unknown'`); `builtinDefinitionHash(name)` → `` `builtin:${name}` ``, never null/empty; `extractTokenMetrics` over in-package structural token shape (no SDK import). All deterministic, side-effect-free, non-mutating. AC: ue:ladder/sentinel/mapping/purity definitions.
-- [ ] 4.2 `__tests__/helpers.test.ts`: ladder explicit→value else `'unknown'`; sentinel yields exactly `builtin:explore`; mapping table undefined/MessageAbortedError/ProviderAuthError/SomeNewError→success/cancelled/error/error; purity double-call deep-equal + input unchanged. AC: those four ue scenarios.
-- [ ] 4.3 `__tests__/compat.test.ts`: future-collector extra nested key tolerated; hypothetical new top-level key rejected confirming major-bump gate. AC: ue:backward-compat×2.
+- [x] 4.1 `src/normalize.ts` per design signatures: `resolveStatus` (null/undefined→success; MessageAbortedError→cancelled; any other error→error); `resolveDefinitionVersion` (first defined candidate ?? `'unknown'`); `builtinDefinitionHash(name)` → `` `builtin:${name}` ``, never null/empty; `extractTokenMetrics` over in-package structural token shape (no SDK import). All deterministic, side-effect-free, non-mutating. AC: ue:ladder/sentinel/mapping/purity definitions.
+- [x] 4.2 `__tests__/helpers.test.ts`: ladder explicit→value else `'unknown'`; sentinel yields exactly `builtin:explore`; mapping table undefined/MessageAbortedError/ProviderAuthError/SomeNewError→success/cancelled/error/error; purity double-call deep-equal + input unchanged. AC: those four ue scenarios.
+- [x] 4.3 `__tests__/compat.test.ts`: future-collector extra nested key tolerated; hypothetical new top-level key rejected confirming major-bump gate. AC: ue:backward-compat×2.
 
 ## Phase 5: Verification + Single Initial Commit
 

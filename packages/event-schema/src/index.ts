@@ -5,4 +5,5 @@ export function packageName(): string {
 }
 
 export * from './ids';
+export * from './normalize';
 export * from './schemas';
