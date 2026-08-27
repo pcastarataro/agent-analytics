@@ -2,7 +2,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { AgentDetailPage } from '../../src/pages/AgentDetailPage';
-import type { PaginatedEvents, UsageEventDTO } from '../../src/api/types';
+import type { AgentDetail, UsageEventDTO } from '../../src/api/types';
 
 vi.stubGlobal('fetch', vi.fn());
 const mockFetch = vi.mocked(globalThis.fetch);
@@ -23,19 +23,34 @@ function makeEvent(overrides: Partial<UsageEventDTO> = {}): UsageEventDTO {
     skill: { name: 'sdd-apply' },
     tool: {},
     model: {},
-    metrics: { inputTokens: 50, outputTokens: 100 },
+    metrics: { inputTokens: 50, outputTokens: 100, cost: 0.01 },
     result: { status: 'success' },
     timestamp: '2025-01-15T10:00:00Z',
     ...overrides,
   };
 }
 
-const agentData: PaginatedEvents = {
-  data: [
-    makeEvent({ skill: { name: 'sdd-apply' }, metrics: { inputTokens: 50, outputTokens: 100 } }),
-    makeEvent({ id: 'evt-2', skill: { name: 'pr-review' }, metrics: { inputTokens: 20, outputTokens: 30 } }),
+const agentData: AgentDetail = {
+  agentName: 'alpha',
+  totalEvents: 2,
+  successRate: 95.0,
+  avgDurationMs: 320,
+  totalCost: 1.23,
+  avgCost: 0.615,
+  totalInputTokens: 70,
+  totalOutputTokens: 130,
+  totalCachedTokens: 20,
+  eventsOverTime: [
+    { date: '2025-01-15', count: 2 },
   ],
-  nextCursor: null,
+  tokensBySkill: [
+    { name: 'sdd-apply', tokens: 150 },
+    { name: 'pr-review', tokens: 50 },
+  ],
+  recentEvents: [
+    makeEvent({ skill: { name: 'sdd-apply' }, metrics: { inputTokens: 50, outputTokens: 100, cost: 0.01 } }),
+    makeEvent({ id: 'evt-2', skill: { name: 'pr-review' }, metrics: { inputTokens: 20, outputTokens: 30, cost: 0.005 } }),
+  ],
 };
 
 function renderAgentPage(agentName = 'alpha') {
@@ -72,6 +87,7 @@ describe('AgentDetailPage', () => {
     expect(screen.getByText('2')).toBeDefined();
     expect(screen.getByText('Tokens by Skill')).toBeDefined();
     expect(screen.getByText('Events Over Time')).toBeDefined();
+    expect(screen.getByText('Recent Events')).toBeDefined();
   });
 
   it('shows error on API failure', async () => {
@@ -88,7 +104,7 @@ describe('AgentDetailPage', () => {
     });
   });
 
-  it('has a back link to events', async () => {
+  it('has a back link to agents', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(agentData),
@@ -97,7 +113,7 @@ describe('AgentDetailPage', () => {
     renderAgentPage();
 
     await waitFor(() => {
-      expect(screen.getByText('← Events')).toBeDefined();
+      expect(screen.getByText('← Agents')).toBeDefined();
     });
   });
 });

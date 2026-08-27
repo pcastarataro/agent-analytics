@@ -12,8 +12,8 @@ afterEach(() => {
 
 const skillData = {
   data: [
-    { skillName: 'code-review', version: '1.2.0', executionCount: 40, successRate: 95.0, totalCost: 0.95 },
-    { skillName: 'testing', version: '3.0.0', executionCount: 25, successRate: 80.0, totalCost: 0.60 },
+    { skillName: 'code-review', version: '1.2.0', executionCount: 40, successRate: 95.0, avgCost: 0.0238, totalCost: 0.95 },
+    { skillName: 'testing', version: '3.0.0', executionCount: 25, successRate: 80.0, avgCost: 0.0240, totalCost: 0.60 },
   ],
 };
 
