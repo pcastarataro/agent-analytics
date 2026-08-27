@@ -8,6 +8,7 @@ import { authStub } from './middleware/auth';
 import { errorHandler } from './middleware/error-handler';
 import { validateBody } from './middleware/validate';
 import { createEventRoutes } from './routes/events';
+import { createHealthRoutes } from './routes/health';
 import { createStatsRoutes } from './routes/stats';
 import type { ApiConfig } from './config';
 
@@ -17,9 +18,7 @@ export function createApp(config: ApiConfig, repository: EventRepository) {
   app.use(cors({ origin: config.corsOrigins }));
   app.use(express.json());
 
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok' });
-  });
+  app.use('/health', createHealthRoutes());
 
   app.use(authStub);
 

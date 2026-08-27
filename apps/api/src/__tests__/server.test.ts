@@ -34,7 +34,7 @@ describe('API Server', () => {
     const { default: request } = await import('supertest');
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body).toEqual({ status: 'ok', timestamp: expect.any(String) });
   });
 
   it('rejects non-array body on POST /v1/events/batch', async () => {
