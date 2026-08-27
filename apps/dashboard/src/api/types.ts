@@ -115,3 +115,29 @@ export interface PaginatedSessions {
   data: SessionSummary[];
   nextCursor: string | null;
 }
+
+export interface AgentStat {
+  agentName: string;
+  version: string;
+  executionCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+}
+
+export interface SkillStat {
+  skillName: string;
+  version: string;
+  executionCount: number;
+  successRate: number;
+  totalCost: number;
+}
+
+export interface UserStat {
+  userId: string;
+  eventCount: number;
+  distinctAgents: number;
+  distinctSkills: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
