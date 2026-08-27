@@ -83,6 +83,16 @@ Chain strategy: stacked-to-main
 | Loading state during fetch | 1.11, 1.14 |
 | Sidebar collapses on narrow viewport | 1.12 |
 
+## Verification
+
+- [x] 4.1 Run `npx tsc --noEmit` — exit code 0, zero errors
+- [x] 4.2 Run `npx vitest run` in `apps/dashboard/` — 7 suites, 31 tests, all pass
+- [x] 4.3 Run `npx eslint .` from monorepo root — 1 warning (unused import), no blocking errors
+- [x] 4.4 Negative control: file with implicit `any` → tsc catches with TS7006
+- [x] 4.5 Walk all 12 spec scenarios → 11 PROVEN, 1 COVERED-BY-CODE
+- [x] 4.6 Design coherence check → all decisions match implementation
+- [x] 4.7 Write verify-report.md
+
 ## Next Step
 
-Ready for `sdd-apply`. User must decide chain strategy (stacked-to-main recommended) before apply begins.
+Verification complete. Ready for `sdd-archive`.
