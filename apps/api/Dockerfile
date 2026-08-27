@@ -1,29 +1,24 @@
-FROM node:22-alpine AS builder
+FROM node:22-alpine
+
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-COPY apps/api/package.json apps/api/
-COPY apps/dashboard/package.json apps/dashboard/
-COPY packages/event-schema/package.json packages/event-schema/
-COPY packages/database/package.json packages/database/
-COPY packages/shared/package.json packages/shared/
-COPY packages/opencode-collector/package.json packages/opencode-collector/
+# Copy package files
+COPY package.json package-lock.json* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/database/package.json ./packages/database/
+COPY packages/event-schema/package.json ./packages/event-schema/
+COPY packages/shared/package.json ./packages/shared/
 
-RUN npm ci
-RUN npm install tsx
+# Install dependencies
+RUN npm install
 
-COPY apps/api/ apps/api/
-COPY packages/event-schema/ packages/event-schema/
-COPY packages/database/ packages/database/
-COPY packages/shared/ packages/shared/
-COPY packages/opencode-collector/ packages/opencode-collector/
-COPY tsconfig.base.json tsconfig.json ./
-
-FROM node:22-alpine AS runner
-WORKDIR /app
-
-COPY --from=builder /app .
+# Copy source code
+COPY apps/api ./apps/api
+COPY packages/database ./packages/database
+COPY packages/event-schema ./packages/event-schema
+COPY packages/shared ./packages/shared
+COPY tsconfig.json tsconfig.base.json ./
 
 EXPOSE 3000
 
-CMD ["node_modules/.bin/tsx", "apps/api/src/main.ts"]
+CMD ["npx", "tsx", "apps/api/src/index.ts"]

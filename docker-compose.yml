@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agent_analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/agent_analytics
+      PORT: 3000
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./packages/database/migrations:/app/packages/database/migrations
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        sleep 3 &&
+        echo 'Running migrations...' &&
+        npx drizzle-kit push --force packages/database/drizzle.config.ts &&
+        echo 'Migrations complete!'
+      "
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/agent_analytics
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
