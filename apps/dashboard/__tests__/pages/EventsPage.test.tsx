@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EventsPage } from '../../src/pages/EventsPage';
 import type { PaginatedEvents } from '../../src/api/types';
 
