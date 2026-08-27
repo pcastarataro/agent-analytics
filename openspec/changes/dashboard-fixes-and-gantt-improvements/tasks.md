@@ -47,10 +47,10 @@ Chain strategy: stacked-to-main
 
 ## Phase 4: Event Dedup Fix (PR4 — medium risk)
 
-- [ ] 4.1 In `packages/database/src/schema.ts`, change `index` to `uniqueIndex` on `contentHash` column (~1 line)
-- [ ] 4.2 Create `packages/database/migrations/XXXX_add_content_hash_unique_index.ts` with up (drop non-unique, create unique) and down (reverse) (~15 lines)
-- [ ] 4.3 In `packages/database/src/repository.ts`, change `onConflictDoNothing({ target: usageEvents.id })` to `onConflictDoNothing({ target: usageEvents.contentHash })` (~1 line)
-- [ ] 4.4 Run migration against local DB; verify `INSERT ... ON CONFLICT (content_hash) DO NOTHING` works with same payload, different id (~manual verification)
+- [x] 4.1 In `packages/database/src/schema.ts`, change `index` to `uniqueIndex` on `contentHash` column (~1 line)
+- [x] 4.2 Create `packages/database/migrations/XXXX_add_content_hash_unique_index.ts` with up (drop non-unique, create unique) and down (reverse) (~15 lines)
+- [x] 4.3 In `packages/database/src/repository.ts`, change `onConflictDoNothing({ target: usageEvents.id })` to `onConflictDoNothing({ target: usageEvents.contentHash })` (~1 line)
+- [x] 4.4 Run migration against local DB; verify `INSERT ... ON CONFLICT (content_hash) DO NOTHING` works with same payload, different id (~manual verification)
 
 ## Phase 5: Verification
 
