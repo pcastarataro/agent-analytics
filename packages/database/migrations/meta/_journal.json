@@ -10,6 +10,15 @@
         "id": "0000_initial",
         "createdAt": "2026-08-26T00:00:00.000Z"
       }
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "dialect": "postgresql",
+      "entry": {
+        "id": "0001_add_event_type",
+        "createdAt": "2026-08-27T00:00:00.000Z"
+      }
     }
   ]
 }

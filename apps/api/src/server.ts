@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/error-handler';
 import { validateBody } from './middleware/validate';
 import { createEventRoutes } from './routes/events';
 import { createHealthRoutes } from './routes/health';
+import { createSessionRoutes } from './routes/sessions';
 import { createStatsRoutes } from './routes/stats';
 import type { ApiConfig } from './config';
 
@@ -24,6 +25,7 @@ export function createApp(config: ApiConfig, repository: EventRepository) {
 
   app.use('/v1/events/batch', validateBody(z.array(z.unknown())), createEventRoutes(repository));
   app.use('/v1/events', createEventRoutes(repository));
+  app.use('/v1/sessions', createSessionRoutes(repository));
   app.use('/v1/stats', createStatsRoutes(repository));
 
   app.use(errorHandler);

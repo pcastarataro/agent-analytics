@@ -3,6 +3,7 @@ export interface ExecutionContext {
   traceId: string;
   parentId?: string;
   agentName?: string;
+  eventType?: 'session_created' | 'user_message' | 'assistant_message' | 'tool_call' | 'skill_call';
 }
 
 export interface ToolCall {

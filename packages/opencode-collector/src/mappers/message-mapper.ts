@@ -30,6 +30,8 @@ export function mapUserMessage(
     context.agentName = payload.agent;
   }
 
+  context.eventType = 'user_message';
+
   return {
     agent: { name: context.agentName ?? 'unknown' },
     metrics: {
@@ -49,25 +51,28 @@ export function mapUserMessage(
  *   { providerID, modelID, tokens: { input, output, reasoning, cache: { read, write } },
  *     cost, time: { created, completed? }, error? }
  */
-export function mapAssistantMessage(payload: {
-  message: {
-    providerID?: string;
-    modelID?: string;
-    tokens?: {
-      input?: number;
-      output?: number;
-      reasoning?: number;
-      cache?: { read?: number; write?: number };
+export function mapAssistantMessage(
+  payload: {
+    message: {
+      providerID?: string;
+      modelID?: string;
+      tokens?: {
+        input?: number;
+        output?: number;
+        reasoning?: number;
+        cache?: { read?: number; write?: number };
+      };
+      cost?: number;
+      error?: { name?: string } | null;
+      time?: { created?: number; completed?: number };
+      // Legacy fields (pre-SDK) — tolerated for backwards compat
+      startTime?: number;
+      endTime?: number;
+      cached?: number;
     };
-    cost?: number;
-    error?: { name?: string } | null;
-    time?: { created?: number; completed?: number };
-    // Legacy fields (pre-SDK) — tolerated for backwards compat
-    startTime?: number;
-    endTime?: number;
-    cached?: number;
-  };
-}): Record<string, unknown> {
+  },
+  context: ExecutionContext,
+): Record<string, unknown> {
   const msg = payload.message;
 
   // Map SDK token shape { cache.read } → canonical { cached }
@@ -87,6 +92,8 @@ export function mapAssistantMessage(payload: {
   const endTime = msg.time?.completed ?? msg.endTime;
   const durationMs =
     startTime !== undefined && endTime !== undefined ? endTime - startTime : undefined;
+
+  context.eventType = 'assistant_message';
 
   return {
     model: {

@@ -2,8 +2,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { AgentDetailPage } from '../../src/pages/AgentDetailPage';
-import type { AgentEventsResponse } from '../../src/pages/AgentDetailPage';
-import type { UsageEventDTO } from '../../src/api/types';
+import type { PaginatedEvents, UsageEventDTO } from '../../src/api/types';
 
 vi.stubGlobal('fetch', vi.fn());
 const mockFetch = vi.mocked(globalThis.fetch);
@@ -31,12 +30,12 @@ function makeEvent(overrides: Partial<UsageEventDTO> = {}): UsageEventDTO {
   };
 }
 
-const agentData: AgentEventsResponse = {
-  events: [
+const agentData: PaginatedEvents = {
+  data: [
     makeEvent({ skill: { name: 'sdd-apply' }, metrics: { inputTokens: 50, outputTokens: 100 } }),
     makeEvent({ id: 'evt-2', skill: { name: 'pr-review' }, metrics: { inputTokens: 20, outputTokens: 30 } }),
   ],
-  stats: { total: 2, byAgent: { alpha: 2 }, byStatus: { success: 2 }, byDate: { '2025-01-15': 2 } },
+  nextCursor: null,
 };
 
 function renderAgentPage(agentName = 'alpha') {

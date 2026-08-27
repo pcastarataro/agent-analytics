@@ -1,5 +1,56 @@
+export interface UsageMetrics {
+  totalEvents: number;
+  distinctSessions: number;
+  distinctExecutions: number;
+  agentInvocations: number;
+  skillInvocations: number;
+  toolCalls: number;
+}
+
+export interface PerformanceMetrics {
+  totalDurationMs: number;
+  avgDurationMs: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  totalCost: number;
+  avgCost: number;
+}
+
+export interface QualityMetrics {
+  successCount: number;
+  errorCount: number;
+  cancelledCount: number;
+  totalRetries: number;
+  successRate: number;
+  errorRate: number;
+}
+
+export interface AgentVersionMetrics {
+  version: string;
+  count: number;
+  successCount: number;
+  avgDurationMs: number;
+  totalCost: number;
+}
+
+export interface SkillVersionMetrics {
+  version: string;
+  count: number;
+  successCount: number;
+  totalCost: number;
+}
+
+export interface EvolutionMetrics {
+  byAgentVersion: AgentVersionMetrics[];
+  bySkillVersion: SkillVersionMetrics[];
+}
+
 export interface StatsOverview {
-  total: number;
+  usage: UsageMetrics;
+  performance: PerformanceMetrics;
+  quality: QualityMetrics;
+  evolution: EvolutionMetrics;
   byAgent: Record<string, number>;
   byStatus: Record<string, number>;
   byDate: Record<string, number>;
@@ -39,4 +90,28 @@ export interface EventFilters {
   to?: string;
   limit?: number;
   cursor?: string;
+}
+
+export interface SessionSummary {
+  sessionId: string;
+  eventCount: number;
+  startedAt: string;
+  lastEventAt: string;
+  totalDurationMs: number;
+  agentName: string;
+  eventTypes: string[];
+}
+
+export interface SessionEvent extends UsageEventDTO {
+  eventType: string;
+}
+
+export interface SessionDetail {
+  session: SessionSummary;
+  events: SessionEvent[];
+}
+
+export interface PaginatedSessions {
+  data: SessionSummary[];
+  nextCursor: string | null;
 }

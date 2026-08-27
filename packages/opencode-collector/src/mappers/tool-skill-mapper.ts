@@ -17,12 +17,16 @@ export function mapToolBefore(
       ((args as Record<string, unknown> | undefined)?.name as string) ?? 'unknown';
     tc.skillName = skillName;
     return {
+      execution: { eventType: 'tool_call' as const },
       skill: { name: skillName },
       tool: { name: tool },
     };
   }
 
-  return { tool: { name: tool } };
+  return {
+    execution: { eventType: 'tool_call' as const },
+    tool: { name: tool },
+  };
 }
 
 export function mapToolAfter(
@@ -37,6 +41,7 @@ export function mapToolAfter(
   tc.status = payload.result?.error ? 'error' : 'success';
 
   return {
+    execution: { eventType: 'tool_call' as const },
     tool: { name: tc.toolName },
     ...(tc.skillName !== undefined && { skill: { name: tc.skillName } }),
     metrics: {
@@ -69,6 +74,7 @@ export function mapToolPart(
         tc.endTime = endTime;
       }
       return {
+        execution: { eventType: 'tool_call' as const },
         tool: { name: tc.toolName },
         metrics: {
           durationMs: (tc.endTime ?? Date.now()) - tc.startTime,
@@ -79,6 +85,7 @@ export function mapToolPart(
   }
 
   return {
+    execution: { eventType: 'tool_call' as const },
     tool: { name: tool ?? 'unknown' },
     result: { status: (error ? 'error' : 'success') as 'success' | 'error' },
   };
@@ -93,6 +100,7 @@ export function mapSkillComplete(payload: {
 }): Record<string, unknown> {
   const { name, version, definitionHash } = payload.skill;
   return {
+    execution: { eventType: 'skill_call' as const },
     skill: {
       name,
       ...(version !== undefined && { version }),

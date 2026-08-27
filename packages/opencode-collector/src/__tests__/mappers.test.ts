@@ -83,6 +83,14 @@ describe('Session Mapper', () => {
       },
     ],
     [
+      'sets eventType to session_created',
+      FIXTURES.sessionCreatedRoot,
+      (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
+        const ctx = mapSessionCreated(FIXTURES.sessionCreatedRoot, executions, edges);
+        expect(ctx.eventType).toBe('session_created');
+      },
+    ],
+    [
       'parentId set on child, absent on root',
       FIXTURES.sessionCreatedChild,
       (executions: Map<string, ExecutionContext>, edges: EdgeMap) => {
@@ -175,6 +183,14 @@ describe('Message Mapper', () => {
           expect(result.agent).toEqual({ name: 'unknown' });
         },
       ],
+      [
+        'sets eventType to user_message on context',
+        FIXTURES.userMessage,
+        createTestConfig(),
+        (_result: Record<string, unknown>, ctx: ExecutionContext) => {
+          expect(ctx.eventType).toBe('user_message');
+        },
+      ],
     ])('%s', (_name, payload, config, assertion) => {
       const ctx = createContext();
       const result = mapUserMessage(payload, ctx, config);
@@ -240,9 +256,17 @@ describe('Message Mapper', () => {
           });
         },
       ],
+      [
+        'sets eventType to assistant_message on context',
+        FIXTURES.assistantMessageSuccess,
+        (_result: Record<string, unknown>, ctx: ExecutionContext) => {
+          expect(ctx.eventType).toBe('assistant_message');
+        },
+      ],
     ])('%s', (_name, payload, assertion) => {
-      const result = mapAssistantMessage(payload);
-      assertion(result);
+      const ctx = createContext();
+      const result = mapAssistantMessage(payload, ctx);
+      assertion(result, ctx);
     });
   });
 });
@@ -273,6 +297,13 @@ describe('Tool-Skill Mapper', () => {
         FIXTURES.toolExecuteBefore,
         (result: Record<string, unknown>) => {
           expect(result).not.toHaveProperty('skill');
+        },
+      ],
+      [
+        'sets eventType to tool_call',
+        FIXTURES.toolExecuteBefore,
+        (result: Record<string, unknown>) => {
+          expect(result.execution).toEqual({ eventType: 'tool_call' });
         },
       ],
     ])('%s', (_name, payload, assertion) => {
@@ -317,6 +348,13 @@ describe('Tool-Skill Mapper', () => {
           expect(typeof (result.metrics as Record<string, unknown>).durationMs).toBe('number');
         },
       ],
+      [
+        'sets eventType to tool_call',
+        FIXTURES.toolExecuteAfterSuccess,
+        (result: Record<string, unknown>) => {
+          expect(result.execution).toEqual({ eventType: 'tool_call' });
+        },
+      ],
     ])('%s', (_name, payload, assertion) => {
       const toolCalls = createToolCalls();
       mapToolBefore(FIXTURES.toolExecuteBefore, toolCalls);
@@ -351,6 +389,13 @@ describe('Tool-Skill Mapper', () => {
           expect(result.result).toEqual({ status: 'success' });
         },
       ],
+      [
+        'sets eventType to tool_call',
+        FIXTURES.toolPartCompleted,
+        (result: Record<string, unknown>) => {
+          expect(result.execution).toEqual({ eventType: 'tool_call' });
+        },
+      ],
     ])('%s', (_name, payload, assertion) => {
       const toolCalls = createToolCalls();
       mapToolBefore(FIXTURES.toolExecuteBefore, toolCalls);
@@ -377,6 +422,13 @@ describe('Tool-Skill Mapper', () => {
         FIXTURES.skillCompleteNoVersion,
         (result: Record<string, unknown>) => {
           expect(result.skill).toEqual({ name: 'sdd-apply' });
+        },
+      ],
+      [
+        'sets eventType to skill_call',
+        FIXTURES.skillComplete,
+        (result: Record<string, unknown>) => {
+          expect(result.execution).toEqual({ eventType: 'skill_call' });
         },
       ],
     ])('%s', (_name, payload, assertion) => {

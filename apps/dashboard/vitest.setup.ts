@@ -1,3 +1,6 @@
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
 // Polyfill ResizeObserver for jsdom (used by recharts ResponsiveContainer)
 class ResizeObserverMock {
   callback: ResizeObserverCallback;
@@ -10,3 +13,8 @@ class ResizeObserverMock {
 }
 
 globalThis.ResizeObserver = ResizeObserverMock;
+
+// Auto-cleanup between tests
+afterEach(() => {
+  cleanup();
+});

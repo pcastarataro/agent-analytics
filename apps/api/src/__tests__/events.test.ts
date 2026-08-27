@@ -29,6 +29,17 @@ function createMockRepository(): EventRepository {
       }),
     countByGroup: jest.fn().mockResolvedValue({}),
     countByDate: jest.fn().mockResolvedValue({}),
+    getMetricsAggregation: jest.fn().mockResolvedValue({
+      usage: { totalEvents: 0, distinctSessions: 0, distinctExecutions: 0, agentInvocations: 0, skillInvocations: 0, toolCalls: 0 },
+      performance: { totalDurationMs: 0, avgDurationMs: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCachedTokens: 0, totalCost: 0, avgCost: 0 },
+      quality: { successCount: 0, errorCount: 0, cancelledCount: 0, totalRetries: 0, successRate: 0, errorRate: 0 },
+      evolution: { byAgentVersion: [], bySkillVersion: [] },
+      byAgent: {},
+      byStatus: {},
+      byDate: {},
+    }),
+    findSessionList: jest.fn().mockResolvedValue({ data: [], nextCursor: null }),
+    findSessionEvents: jest.fn().mockResolvedValue(null),
   };
 }
 

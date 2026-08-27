@@ -165,7 +165,7 @@ export const createPlugin = async ({
     const ctx = mapSessionCreated(payload, executions, edges);
     enqueueEvent({
       session: { id: ctx.sessionId },
-      execution: { traceId: ctx.traceId, parentId: ctx.parentId },
+      execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
       agent: { name: ctx.agentName ?? 'unknown' },
     });
   }
@@ -189,22 +189,25 @@ export const createPlugin = async ({
             ctx,
             config,
           )
-        : mapAssistantMessage(
-            payload as unknown as {
-              message: {
-                providerID?: string;
-                modelID?: string;
-                tokens?: { input?: number; output?: number; cached?: number };
-                error?: { name?: string } | null;
-                startTime?: number;
-                endTime?: number;
-              };
-            },
-          );
+        : (() => {
+            return mapAssistantMessage(
+              payload as unknown as {
+                message: {
+                  providerID?: string;
+                  modelID?: string;
+                  tokens?: { input?: number; output?: number; cached?: number };
+                  error?: { name?: string } | null;
+                  startTime?: number;
+                  endTime?: number;
+                };
+              },
+              ctx,
+            );
+          })();
 
     enqueueEvent({
       session: { id: ctx.sessionId },
-      execution: { traceId: ctx.traceId, parentId: ctx.parentId },
+      execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
       ...fields,
       agent: { name: ctx?.agentName ?? 'unknown' },
     });
@@ -221,10 +224,14 @@ export const createPlugin = async ({
       ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
+    const { execution: mapperExec, ...restFields } = fields;
     enqueueEvent({
       session: ctx ? { id: ctx.sessionId } : {},
-      execution: ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' },
-      ...fields,
+      execution: {
+        ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),
+        ...(mapperExec as Record<string, unknown> || {}),
+      },
+      ...restFields,
       agent: { name: ctx?.agentName ?? 'unknown' },
     });
   }
@@ -242,10 +249,14 @@ export const createPlugin = async ({
       ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
+    const { execution: mapperExec, ...restFields } = fields;
     enqueueEvent({
       session: ctx ? { id: ctx.sessionId } : {},
-      execution: ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' },
-      ...fields,
+      execution: {
+        ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),
+        ...(mapperExec as Record<string, unknown> || {}),
+      },
+      ...restFields,
       agent: { name: ctx?.agentName ?? 'unknown' },
     });
   }

@@ -22,6 +22,7 @@ export function mapSessionCreated(
     sessionId: id,
     traceId: rootId,
     parentId: parentID,
+    eventType: 'session_created',
   };
 
   executions.set(id, ctx);

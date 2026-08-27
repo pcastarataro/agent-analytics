@@ -17,15 +17,9 @@ export function createStatsRoutes(repository: EventRepository): Router {
         const hasFilters = Object.keys(dateFilters).length > 0;
         const filters = hasFilters ? dateFilters : undefined;
 
-        const [byAgent, byStatus, byDate] = await Promise.all([
-          repository.countByGroup('agentName', filters),
-          repository.countByGroup('status', filters),
-          repository.countByDate(filters),
-        ]);
+        const aggregation = await repository.getMetricsAggregation(filters);
 
-        const total = Object.values(byAgent).reduce((sum, n) => sum + n, 0);
-
-        res.json({ total, byAgent, byStatus, byDate });
+        res.json(aggregation);
       } catch (err) {
         next(err);
       }

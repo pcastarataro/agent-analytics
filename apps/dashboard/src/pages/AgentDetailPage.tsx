@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
-import type { StatsOverview, UsageEventDTO } from '../api/types';
+import type { PaginatedEvents, UsageEventDTO } from '../api/types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import {
@@ -14,11 +14,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-
-export interface AgentEventsResponse {
-  events: UsageEventDTO[];
-  stats: StatsOverview;
-}
 
 function buildTokensPerSkill(events: UsageEventDTO[]): { name: string; tokens: number }[] {
   const map = new Map<string, number>();
@@ -47,7 +42,7 @@ function buildEventsOverTime(events: UsageEventDTO[]): { date: string; count: nu
 
 export function AgentDetailPage() {
   const { name } = useParams<{ name: string }>();
-  const { data, loading, error, refetch } = useApi<AgentEventsResponse>(
+  const { data, loading, error, refetch } = useApi<PaginatedEvents>(
     `/v1/events?agentName=${encodeURIComponent(name ?? '')}`,
   );
 
@@ -55,7 +50,7 @@ export function AgentDetailPage() {
   if (error) return <ErrorMessage message={error.message} onRetry={refetch} />;
   if (!data) return null;
 
-  const { events, stats } = data;
+  const events = data.data;
   const tokensPerSkill = buildTokensPerSkill(events);
   const eventsOverTime = buildEventsOverTime(events);
 
@@ -71,7 +66,7 @@ export function AgentDetailPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <p className="text-sm font-medium text-gray-500">Total Events</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{stats.total.toLocaleString()}</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900">{events.length.toLocaleString()}</p>
         </div>
       </div>
 

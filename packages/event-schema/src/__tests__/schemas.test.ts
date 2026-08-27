@@ -91,3 +91,33 @@ describe('Field-Level Contract Rules', () => {
     expect(hasPath(failureOf(input), ['metrics', 'cost'])).toBe(true);
   });
 });
+
+describe('eventType Field Contract', () => {
+  const EVENT_TYPES = [
+    'session_created',
+    'user_message',
+    'assistant_message',
+    'tool_call',
+    'skill_call',
+  ] as const;
+
+  it.each(EVENT_TYPES)('accepts eventType=%s in execution', (eventType) => {
+    const input = { ...baseEvent(), execution: { traceId: ROOT_SESSION_ID, eventType } };
+    expect(usageEventSchema.safeParse(input).success).toBe(true);
+  });
+
+  it('rejects an invalid eventType value', () => {
+    const input = {
+      ...baseEvent(),
+      execution: { traceId: ROOT_SESSION_ID, eventType: 'invalid_type' },
+    };
+    const parsed = usageEventSchema.safeParse(input);
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts events without eventType (backward compatibility)', () => {
+    const input = baseEvent();
+    const parsed = usageEventSchema.parse(input);
+    expect(parsed.execution.eventType).toBeUndefined();
+  });
+});

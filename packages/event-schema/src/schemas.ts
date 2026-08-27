@@ -15,6 +15,7 @@ export const sessionSchema = z.looseObject({});
 export const executionSchema = z.looseObject({
   traceId: z.string(),
   parentId: z.string().optional(),
+  eventType: z.enum(['session_created', 'user_message', 'assistant_message', 'tool_call', 'skill_call']).optional(),
 });
 
 export const agentSchema = z.looseObject({
@@ -39,6 +40,7 @@ export const metricsSchema = z.looseObject({
   outputTokens: z.number().optional(),
   cachedTokens: z.number().optional(),
   cost: z.number().optional(),
+  retries: z.number().optional(),
   promptLength: z.number().optional(),
   promptHash: z.string().optional(),
 });
