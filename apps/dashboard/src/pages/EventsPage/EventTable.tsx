@@ -27,6 +27,8 @@ export function EventTable({ events }: EventTableProps) {
           <tr>
             <th className="px-4 py-3 text-left font-medium text-gray-500">Timestamp</th>
             <th className="px-4 py-3 text-left font-medium text-gray-500">Agent</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-500">Tool</th>
+            <th className="px-4 py-3 text-left font-medium text-gray-500">Skill</th>
             <th className="px-4 py-3 text-left font-medium text-gray-500">Status</th>
             <th className="px-4 py-3 text-left font-medium text-gray-500">Session</th>
             <th className="px-4 py-3 text-right font-medium text-gray-500">Prompt</th>
@@ -41,6 +43,12 @@ export function EventTable({ events }: EventTableProps) {
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 font-medium text-gray-900">
                 {event.agent.name}
+              </td>
+              <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
+                {event.tool?.name ? String(event.tool.name) : '—'}
+              </td>
+              <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
+                {event.skill?.name ? String(event.skill.name) : '—'}
               </td>
               <td className="whitespace-nowrap px-4 py-2.5">
                 <StatusBadge status={event.result.status} />
