@@ -112,6 +112,10 @@ export interface UserStat {
   eventCount: number;
   distinctAgents: number;
   distinctSkills: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  totalCost: number;
   firstSeenAt: Date;
   lastSeenAt: Date;
 }
@@ -643,6 +647,10 @@ export function createDrizzleRepository(
           eventCount: sql<number>`count(*)::int`,
           distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
           distinctSkills: sql<number>`count(distinct (${usageEvents.skill}::jsonb->>'name'))::int`,
+          totalInputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint), 0)::bigint`,
+          totalOutputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+          totalCachedTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cachedTokens')::bigint), 0)::bigint`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
           firstSeenAt: sql<Date>`min(${usageEvents.timestamp})`,
           lastSeenAt: sql<Date>`max(${usageEvents.timestamp})`,
         })
@@ -656,6 +664,10 @@ export function createDrizzleRepository(
         eventCount: row.eventCount,
         distinctAgents: row.distinctAgents,
         distinctSkills: row.distinctSkills,
+        totalInputTokens: Number(row.totalInputTokens),
+        totalOutputTokens: Number(row.totalOutputTokens),
+        totalCachedTokens: Number(row.totalCachedTokens),
+        totalCost: Number(row.totalCost),
         firstSeenAt: row.firstSeenAt instanceof Date ? row.firstSeenAt : new Date(row.firstSeenAt),
         lastSeenAt: row.lastSeenAt instanceof Date ? row.lastSeenAt : new Date(row.lastSeenAt),
       }));
