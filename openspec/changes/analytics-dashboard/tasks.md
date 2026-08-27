@@ -52,19 +52,19 @@ Chain strategy: stacked-to-main
 
 ## Phase 2: Events Page (PR 2)
 
-- [ ] 2.1 Create `apps/dashboard/src/components/FilterBar.tsx` — agent name select/dropdown and status filter controls
-- [ ] 2.2 Create `apps/dashboard/src/components/EventTable.tsx` — paginated table (timestamp, agentName, status, sessionId, promptLength, responseLength) with horizontal scroll on overflow
-- [ ] 2.3 Create `apps/dashboard/src/pages/EventsPage.tsx` — integrates FilterBar + EventTable, cursor-based "Load More" pagination, fetches `/v1/events` with query params
-- [ ] 2.4 Update `apps/dashboard/src/App.tsx` — add `/events` route pointing to `EventsPage`
+- [x] 2.1 Create `apps/dashboard/src/components/FilterBar.tsx` — agent name select/dropdown and status filter controls
+- [x] 2.2 Create `apps/dashboard/src/components/EventTable.tsx` — paginated table (timestamp, agentName, status, sessionId, promptLength, responseLength) with horizontal scroll on overflow
+- [x] 2.3 Create `apps/dashboard/src/pages/EventsPage.tsx` — integrates FilterBar + EventTable, cursor-based "Load More" pagination, fetches `/v1/events` with query params
+- [x] 2.4 Update `apps/dashboard/src/App.tsx` — add `/events` route pointing to `EventsPage`
 
 ## Phase 3: Agent Detail + Tests (PR 3)
 
-- [ ] 3.1 Create `apps/dashboard/src/pages/AgentDetailPage.tsx` — per-agent breakdown: tokens-per-agent bar chart, events-over-time line chart, skill breakdown; fetches agent-filtered data
-- [ ] 3.2 Update `apps/dashboard/src/App.tsx` — add `/agents/:name` route pointing to `AgentDetailPage`
-- [ ] 3.3 Create `apps/dashboard/__tests__/api/client.test.ts` — test `fetchApi` returns typed response on 200; rejects with status on non-2xx
-- [ ] 3.4 Create `apps/dashboard/__tests__/hooks/useApi.test.tsx` — test hook returns `data` on success, `error` on failure, `loading` during fetch
-- [ ] 3.5 Create `apps/dashboard/__tests__/pages/OverviewPage.test.tsx` — renders stats card + charts from mock data; shows empty state when `totalEvents === 0`
-- [ ] 3.6 Create `apps/dashboard/__tests__/pages/AgentDetailPage.test.tsx` — renders per-agent charts from mock data
+- [x] 3.1 Create `apps/dashboard/src/pages/AgentDetailPage.tsx` — per-agent breakdown: tokens-per-agent bar chart, events-over-time line chart, skill breakdown; fetches agent-filtered data
+- [x] 3.2 Update `apps/dashboard/src/App.tsx` — add `/agents/:name` route pointing to `AgentDetailPage`
+- [x] 3.3 Create `apps/dashboard/__tests__/api/client.test.ts` — test `fetchApi` returns typed response on 200; rejects with status on non-2xx
+- [x] 3.4 Create `apps/dashboard/__tests__/hooks/useApi.test.tsx` — test hook returns `data` on success, `error` on failure, `loading` during fetch
+- [x] 3.5 Create `apps/dashboard/__tests__/pages/OverviewPage.test.tsx` — renders stats card + charts from mock data; shows empty state when `totalEvents === 0`
+- [x] 3.6 Create `apps/dashboard/__tests__/pages/AgentDetailPage.test.tsx` — renders per-agent charts from mock data
 
 ## Spec Traceability Matrix
 
