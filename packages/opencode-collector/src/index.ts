@@ -143,6 +143,7 @@ export const createPlugin = async ({
       model: {},
       metrics: {},
       result: { status: 'success' },
+      timestamp: new Date().toISOString(),
       ...fields,
     } as UsageEvent;
 
@@ -205,6 +206,7 @@ export const createPlugin = async ({
       session: { id: ctx.sessionId },
       execution: { traceId: ctx.traceId, parentId: ctx.parentId },
       ...fields,
+      agent: { name: ctx?.agentName ?? 'unknown' },
     });
   }
 
@@ -223,6 +225,7 @@ export const createPlugin = async ({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' },
       ...fields,
+      agent: { name: ctx?.agentName ?? 'unknown' },
     });
   }
 
@@ -243,6 +246,7 @@ export const createPlugin = async ({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' },
       ...fields,
+      agent: { name: ctx?.agentName ?? 'unknown' },
     });
   }
 
