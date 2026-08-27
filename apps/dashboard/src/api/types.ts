@@ -65,7 +65,7 @@ export interface UsageEventDTO {
   agent: { name: string; version?: string; definitionHash?: string };
   skill: { name: string; version?: string; definitionHash?: string };
   tool: Record<string, unknown>;
-  model: Record<string, unknown>;
+  model: { id?: string; provider?: string; [key: string]: unknown };
   metrics: {
     durationMs?: number;
     inputTokens?: number;

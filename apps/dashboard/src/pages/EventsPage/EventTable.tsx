@@ -48,7 +48,7 @@ export function EventTable({ events }: EventTableProps) {
                 {event.agent.name}
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
-                {event.agent.version ?? '—'}
+                {event.agent.version ?? event.agent.definitionHash ?? '—'}
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
                 {event.tool?.name ? String(event.tool.name) : '—'}
@@ -60,7 +60,9 @@ export function EventTable({ events }: EventTableProps) {
                 {event.skill?.version ?? '—'}
               </td>
               <td className="whitespace-nowrap px-4 py-2.5 text-gray-700">
-                {String((event.model as Record<string, unknown>)?.name ?? '—')}
+                {event.model?.id
+                  ? `${event.model.provider ? `${event.model.provider}/` : ''}${String(event.model.id)}`
+                  : '—'}
               </td>
               <td className="whitespace-nowrap px-4 py-2.5">
                 <StatusBadge status={event.result.status} />
