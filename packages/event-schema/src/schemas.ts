@@ -61,6 +61,7 @@ export const usageEventSchema = z.strictObject({
   model: modelSchema,
   metrics: metricsSchema,
   result: resultSchema,
+  timestamp: z.string().optional(),
 });
 
 export type UsageEvent = z.infer<typeof usageEventSchema>;
