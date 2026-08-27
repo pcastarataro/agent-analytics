@@ -27,9 +27,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 1: EventTable Display Fixes (PR1 — low risk)
 
-- [ ] 1.1 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change model column cell from `event.model.name` to `event.model?.id ?? '—'` (~5 lines)
-- [ ] 1.2 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change agentVersion cell to `event.agent?.version ?? event.agent?.definitionHash ?? '—'` (~3 lines)
-- [ ] 1.3 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change skillVersion cell to `event.skill?.version ?? '—'` (~2 lines)
+- [x] 1.1 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change model column cell from `event.model.name` to `event.model?.id ?? '—'` (~5 lines)
+- [x] 1.2 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change agentVersion cell to `event.agent?.version ?? event.agent?.definitionHash ?? '—'` (~3 lines)
+- [x] 1.3 In `apps/dashboard/src/pages/EventsPage/EventTable.tsx`, change skillVersion cell to `event.skill?.version ?? '—'` (~2 lines)
 
 ## Phase 2: UserTable Token/Cost Columns (PR2 — medium risk)
 
@@ -54,9 +54,9 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: Verification
 
-- [ ] 5.1 Run `npx tsc --noEventable` — zero type errors across all changed files
-- [ ] 5.2 Visual check: EventTable shows `model.id` and `—` fallbacks correctly
-- [ ] 5.3 Visual check: UserTable shows token/cost columns with formatted numbers
-- [ ] 5.4 Visual check: GanttChart tooltip color matches bar color; row labels show tool/skill names
-- [ ] 5.5 Visual check: GanttChart sticky header/footer visible during scroll on long sessions
-- [ ] 5.6 Integration: insert duplicate contentHash → only 1 row; distinct IDs with different hashes → 2 rows
+- [x] 5.1 Run `npx tsc --noEventable` — zero type errors across all changed files
+- [x] 5.2 Visual check: EventTable shows `model.id` and `—` fallbacks correctly
+- [x] 5.3 Visual check: UserTable shows token/cost columns with formatted numbers
+- [x] 5.4 Visual check: GanttChart tooltip color matches bar color; row labels show tool/skill names
+- [x] 5.5 Visual check: GanttChart sticky header/footer visible during scroll on long sessions
+- [x] 5.6 Integration: insert duplicate contentHash → only 1 row; distinct IDs with different hashes → 2 rows

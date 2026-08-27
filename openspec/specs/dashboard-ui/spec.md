@@ -96,20 +96,17 @@ The Overview Page SHALL display (1) a total-events count card, (2) a bar chart o
 
 The Events Page SHALL display a filterable, paginated table of `UsageEvent` records. Columns SHALL include: timestamp, agentName, agentVersion, skillVersion, model, status, sessionId, promptLength, responseLength. Pagination SHALL use cursor-based load-more. The table MUST deduplicate events by `event.id` — no duplicate rows SHALL appear for the same event ID.
 
-#### Scenario: Paginated event loading
+#### Scenario: Model displayed in table
 
-- GIVEN the API returns 50 events with a `nextCursor`
-- WHEN the user views the Events page
-- THEN the first 50 events are displayed
-- AND a "Load More" button is visible
-- WHEN the user clicks "Load More"
-- THEN the next page of events is appended to the table
+- GIVEN an event with `model.id = "claude-sonnet-4-20250514"`
+- WHEN the Events table renders
+- THEN the Model column shows "claude-sonnet-4-20250514"
 
-#### Scenario: Filter by agent name
+#### Scenario: Model fallback when missing
 
-- GIVEN events exist for agents "alpha" and "beta"
-- WHEN the user selects agent "alpha" from the filter
-- THEN only events where `agentName === "alpha"` are displayed
+- GIVEN an event with `model` undefined or null
+- WHEN the Events table renders
+- THEN the Model column shows "—"
 
 #### Scenario: Agent version displayed in table
 
@@ -135,29 +132,18 @@ The Events Page SHALL display a filterable, paginated table of `UsageEvent` reco
 - WHEN the Events table renders
 - THEN the Skill Version column shows "—"
 
-#### Scenario: Model displayed in table
+#### Scenario: Paginated event loading
 
-- GIVEN an event with `model.name = "claude-sonnet-4-20250514"`
-- WHEN the Events table renders
-- THEN the Model column shows "claude-sonnet-4-20250514"
+- GIVEN the API returns 50 events with a `nextCursor`
+- WHEN the user views the Events page
+- THEN the first 50 events are displayed
+- AND a "Load More" button is visible
 
-#### Scenario: Model fallback when missing
+#### Scenario: Filter by agent name
 
-- GIVEN an event with `model` undefined or null
-- WHEN the Events table renders
-- THEN the Model column shows "—"
-
-#### Scenario: No duplicate events after dedup fix
-
-- GIVEN two events with different `id` values but identical `contentHash`
-- WHEN the Events table renders
-- THEN both events appear as distinct rows (no dedup by contentHash alone)
-
-#### Scenario: Dedup by event.id
-
-- GIVEN the same event received twice (same `id`)
-- WHEN the Events table renders
-- THEN only one row appears for that event ID
+- GIVEN events exist for agents "alpha" and "beta"
+- WHEN the user selects agent "alpha" from the filter
+- THEN only events where `agentName === "alpha"` are displayed
 
 ### Requirement: Navigation
 
@@ -228,13 +214,25 @@ The dashboard SHALL include a `/skills` route rendering a table of skills. Each 
 
 ### Requirement: User Evaluation Page
 
-The dashboard SHALL include a `/users` route rendering a table of users. Each row SHALL display: userId, event count, distinct agents used, distinct skills used, first seen timestamp, last seen timestamp. Data SHALL come from `GET /v1/stats/users`. The table SHALL be sortable by any column. Default sort SHALL be event count descending.
+The dashboard SHALL include a `/users` route rendering a table of users. Each row SHALL display: userId, event count, distinct agents used, distinct skills used, total inputTokens, total outputTokens, total cachedTokens, total cost, first seen timestamp, last seen timestamp. Token and cost columns SHALL show SUM aggregations across all events for that user. Data SHALL come from `GET /v1/stats/users`. The table SHALL be sortable by any column. Default sort SHALL be event count descending.
 
 #### Scenario: User evaluation loads from API
 
-- GIVEN `/v1/stats/users` returns 12 users
+- GIVEN `/v1/stats/users` returns 12 users with token/cost fields
 - WHEN the user navigates to `/users`
-- THEN a table renders with 12 rows showing user ID, events, agent count, skill count, first seen, and last seen
+- THEN a table renders with 12 rows showing user ID, events, agent count, skill count, inputTokens, outputTokens, cachedTokens, cost, first seen, and last seen
+
+#### Scenario: Token totals are SUM aggregations
+
+- GIVEN user "u1" with 3 events having inputTokens: 100, 200, 300
+- WHEN the User table renders
+- THEN user "u1" shows inputTokens = 600
+
+#### Scenario: Cost totals are SUM aggregations
+
+- GIVEN user "u1" with 2 events having cost: 0.05 and 0.03
+- WHEN the User table renders
+- THEN user "u1" shows cost = 0.08
 
 #### Scenario: Empty state
 
@@ -324,13 +322,58 @@ The Gantt component SHALL render a horizontal time axis with adaptive granularit
 
 ### Requirement: Gantt Event Color Coding
 
-Each event bar SHALL be colored by `eventType`: `session_created` = blue, `user_message` = green, `assistant_message` = purple, `tool_call` = orange, `skill_call` = teal, `unknown` = gray. A legend SHALL be visible.
+Each event bar SHALL be colored by `eventType`: `session_created` = blue, `user_message` = green, `assistant_message` = purple, `tool_call` = orange, `skill_call` = teal, `unknown` = gray. A single shared `EVENT_COLORS` constant SHALL define the mapping used by both the Gantt chart bars and the tooltip. A legend SHALL be visible.
 
 #### Scenario: Color legend displayed
 
 - GIVEN a session with mixed event types
 - WHEN the Gantt renders
 - THEN a color legend is visible showing each type and its color
+
+#### Scenario: Tooltip colors match chart colors
+
+- GIVEN a `tool_call` event bar rendered in orange
+- WHEN the user hovers over it
+- THEN the tooltip uses the same orange from `EVENT_COLORS`
+
+### Requirement: Gantt Row Labels with Context
+
+Gantt row labels SHALL include contextual information identifying each event. For `tool_call` events, the label SHALL show the tool name. For `skill_call` events, the label SHALL show the skill name. For other events, the label SHALL show the model or event type. Labels MUST be readable and not overflow the row.
+
+#### Scenario: Tool call row shows tool name
+
+- GIVEN a `tool_call` event with tool name "web_search"
+- WHEN the Gantt renders
+- THEN the row label shows "web_search"
+
+#### Scenario: Skill call row shows skill name
+
+- GIVEN a `skill_call` event with skill name "research"
+- WHEN the Gantt renders
+- THEN the row label shows "research"
+
+#### Scenario: Other events show event type
+
+- GIVEN a `user_message` event
+- WHEN the Gantt renders
+- THEN the row label shows "user_message"
+
+### Requirement: Gantt Sticky Header and Footer
+
+The Gantt component SHALL render a sticky time-axis header at the top and a sticky legend footer at the bottom. The middle section containing event bars SHALL be independently scrollable. The sticky elements MUST remain visible while scrolling vertically through events.
+
+#### Scenario: Time axis visible during scroll
+
+- GIVEN a session with 50 events causing vertical overflow
+- WHEN the user scrolls the event area
+- THEN the time-axis header remains fixed at the top
+- AND the legend footer remains fixed at the bottom
+
+#### Scenario: Short sessions render normally
+
+- GIVEN a session with 3 events (no overflow)
+- WHEN the Gantt renders
+- THEN the layout is identical to previous behavior (no visual regression)
 
 ### Requirement: Gantt Sub-Session Indentation
 
