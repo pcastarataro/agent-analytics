@@ -96,6 +96,7 @@ export interface AgentStat {
   executionCount: number;
   successRate: number;
   avgDurationMs: number;
+  avgCost: number;
   totalCost: number;
 }
 
@@ -104,6 +105,7 @@ export interface SkillStat {
   version: string;
   executionCount: number;
   successRate: number;
+  avgCost: number;
   totalCost: number;
 }
 
@@ -582,6 +584,7 @@ export function createDrizzleRepository(
           executionCount: sql<number>`count(*)::int`,
           successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
           avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
           totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
@@ -595,6 +598,7 @@ export function createDrizzleRepository(
         executionCount: row.executionCount,
         successRate: Number(row.successRate),
         avgDurationMs: Number(row.avgDurationMs),
+        avgCost: Number(row.avgCost),
         totalCost: Number(row.totalCost),
       }));
     },
@@ -607,6 +611,9 @@ export function createDrizzleRepository(
       if (filters?.to !== undefined) {
         conditions.push(lte(usageEvents.timestamp, filters.to));
       }
+      conditions.push(
+        sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`,
+      );
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
       const rows = await db
@@ -615,6 +622,7 @@ export function createDrizzleRepository(
           version: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'version', 'unknown')`,
           executionCount: sql<number>`count(*)::int`,
           successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
           totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
@@ -627,6 +635,7 @@ export function createDrizzleRepository(
         version: row.version,
         executionCount: row.executionCount,
         successRate: Number(row.successRate),
+        avgCost: Number(row.avgCost),
         totalCost: Number(row.totalCost),
       }));
     },

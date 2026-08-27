@@ -122,6 +122,7 @@ export interface AgentStat {
   executionCount: number;
   successRate: number;
   avgDurationMs: number;
+  avgCost: number;
   totalCost: number;
 }
 
@@ -130,6 +131,7 @@ export interface SkillStat {
   version: string;
   executionCount: number;
   successRate: number;
+  avgCost: number;
   totalCost: number;
 }
 

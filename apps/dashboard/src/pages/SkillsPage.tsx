@@ -9,6 +9,7 @@ interface SkillStatRow extends Record<string, unknown> {
   version: string;
   executionCount: number;
   successRate: number;
+  avgCost: number;
   totalCost: number;
 }
 
@@ -20,11 +21,19 @@ const columns: Column<SkillStatRow>[] = [
     key: 'successRate',
     label: 'Success Rate',
     render: (row) => `${row.successRate.toFixed(1)}%`,
+    sortable: true,
+  },
+  {
+    key: 'avgCost',
+    label: 'Avg Cost',
+    render: (row) => `$${row.avgCost.toFixed(4)}`,
+    sortable: true,
   },
   {
     key: 'totalCost',
     label: 'Total Cost',
     render: (row) => `$${row.totalCost.toFixed(4)}`,
+    sortable: true,
   },
 ];
 

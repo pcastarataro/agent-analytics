@@ -10,6 +10,7 @@ interface AgentStatRow extends Record<string, unknown> {
   executionCount: number;
   successRate: number;
   avgDurationMs: number;
+  avgCost: number;
   totalCost: number;
 }
 
@@ -21,16 +22,25 @@ const columns: Column<AgentStatRow>[] = [
     key: 'successRate',
     label: 'Success Rate',
     render: (row) => `${row.successRate.toFixed(1)}%`,
+    sortable: true,
   },
   {
     key: 'avgDurationMs',
     label: 'Avg Duration',
     render: (row) => `${row.avgDurationMs.toLocaleString()} ms`,
+    sortable: true,
+  },
+  {
+    key: 'avgCost',
+    label: 'Avg Cost',
+    render: (row) => `$${row.avgCost.toFixed(4)}`,
+    sortable: true,
   },
   {
     key: 'totalCost',
     label: 'Total Cost',
     render: (row) => `$${row.totalCost.toFixed(4)}`,
+    sortable: true,
   },
 ];
 
