@@ -8,6 +8,7 @@ export interface ExecutionContext {
 export interface ToolCall {
   callID: string;
   toolName: string;
+  skillName?: string;
   startTime: number;
   endTime?: number;
   status?: 'success' | 'error';

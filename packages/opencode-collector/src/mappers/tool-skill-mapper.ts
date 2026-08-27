@@ -13,10 +13,11 @@ export function mapToolBefore(
   toolCalls.set(callID, tc);
 
   if (tool === 'skill') {
+    const skillName =
+      ((args as Record<string, unknown> | undefined)?.name as string) ?? 'unknown';
+    tc.skillName = skillName;
     return {
-      skill: {
-        name: ((args as Record<string, unknown> | undefined)?.name as string) ?? 'unknown',
-      },
+      skill: { name: skillName },
       tool: { name: tool },
     };
   }
@@ -37,6 +38,7 @@ export function mapToolAfter(
 
   return {
     tool: { name: tc.toolName },
+    ...(tc.skillName !== undefined && { skill: { name: tc.skillName } }),
     metrics: {
       durationMs: tc.endTime - tc.startTime,
     },
