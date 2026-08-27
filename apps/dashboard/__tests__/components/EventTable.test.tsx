@@ -54,7 +54,7 @@ describe('EventTable', () => {
       makeEvent({
         agent: { name: 'alpha', version: '1.2.3' },
         skill: { name: 'test-skill', version: '2.0.0' },
-        model: { name: 'gpt-4' },
+        model: { id: 'gpt-4', provider: 'openai' },
         result: { status: 'success' },
         execution: { traceId: 'sess-1' },
         metrics: { inputTokens: 100, outputTokens: 200 },
@@ -66,7 +66,7 @@ describe('EventTable', () => {
     expect(screen.getByText('alpha')).toBeDefined();
     expect(screen.getByText('1.2.3')).toBeDefined();
     expect(screen.getByText('2.0.0')).toBeDefined();
-    expect(screen.getByText('gpt-4')).toBeDefined();
+    expect(screen.getByText('openai/gpt-4')).toBeDefined();
     expect(screen.getByText('success')).toBeDefined();
     expect(screen.getByText('sess-1')).toBeDefined();
     expect(screen.getByText('100')).toBeDefined();
