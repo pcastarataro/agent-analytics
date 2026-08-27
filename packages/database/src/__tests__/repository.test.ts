@@ -100,7 +100,7 @@ describe('EventRepository', () => {
 
   describe('findById', () => {
     it('returns null for non-existent ID', async () => {
-      const result = await repo.findById('non-existent-id');
+      const result = await repo.findById('00000000-0000-0000-0000-000000000000');
       expect(result).toBeNull();
     });
 

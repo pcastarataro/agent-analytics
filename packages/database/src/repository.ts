@@ -150,6 +150,9 @@ export function createDrizzleRepository(
       } as const;
 
       const column = columnMap[groupBy];
+      if (!column) {
+        throw new Error(`Unsupported groupBy column: ${groupBy}`);
+      }
 
       const conditions: SQL[] = [];
       if (filters?.from !== undefined) {
