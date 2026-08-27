@@ -1,6 +1,7 @@
 export { usageEvents, type UsageEventRow, type UsageEventInsert } from './schema';
 export {
   createDrizzleRepository,
+  generateContentHash,
   type EventRepository,
   type EventFilters,
   type DateFilters,

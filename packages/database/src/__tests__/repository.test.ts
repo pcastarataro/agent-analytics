@@ -6,7 +6,11 @@ import type { UsageEvent } from '@agent-analytics/event-schema';
 import { usageEventSchema } from '@agent-analytics/event-schema';
 
 import { usageEvents } from '../schema';
-import { createDrizzleRepository, type EventRepository } from '../repository';
+import {
+  createDrizzleRepository,
+  generateContentHash,
+  type EventRepository,
+} from '../repository';
 
 const DATABASE_URL =
   process.env['DATABASE_URL'] ?? 'postgresql://postgres:postgres@localhost:5432/agent_analytics';
@@ -44,7 +48,7 @@ beforeAll(async () => {
   await db.execute(sql`CREATE INDEX "idx_session_id" ON "usage_events" ("session_id")`);
   await db.execute(sql`CREATE INDEX "idx_timestamp" ON "usage_events" ("timestamp")`);
   await db.execute(sql`CREATE INDEX "idx_status" ON "usage_events" ("status")`);
-  await db.execute(sql`CREATE UNIQUE INDEX "idx_content_hash_unique" ON "usage_events" ("content_hash")`);
+  await db.execute(sql`CREATE UNIQUE INDEX "idx_id_unique" ON "usage_events" ("id")`);
 });
 
 afterAll(async () => {
@@ -75,6 +79,25 @@ function makeEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
 }
 
 describe('EventRepository', () => {
+  describe('generateContentHash', () => {
+    it('returns different hashes for events with identical payloads but different IDs', () => {
+      const event1 = makeEvent({ id: 'id-1' });
+      const event2 = makeEvent({ id: 'id-2' });
+
+      const hash1 = generateContentHash(event1);
+      const hash2 = generateContentHash(event2);
+
+      expect(hash1).not.toBe(hash2);
+    });
+
+    it('returns same hash for identical events', () => {
+      const event = makeEvent();
+      const hash1 = generateContentHash(event);
+      const hash2 = generateContentHash(event);
+      expect(hash1).toBe(hash2);
+    });
+  });
+
   describe('insertBatch', () => {
     it('inserts a batch of events and returns count', async () => {
       const events = [makeEvent(), makeEvent({ id: '0192e000-1000-7000-8000-000000000002' })];
@@ -97,7 +120,18 @@ describe('EventRepository', () => {
       expect(result[0]!.count).toBe(1);
     });
 
-    it('deduplicates events with different IDs but same content', async () => {
+    it('deduplicates events with same ID', async () => {
+      const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
+      const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
+
+      await repo.insertBatch([event1]);
+      await repo.insertBatch([event2]);
+
+      const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
+      expect(result[0]!.count).toBe(1);
+    });
+
+    it('allows events with different IDs even if content is identical', async () => {
       const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
       const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000002' });
 
@@ -105,7 +139,7 @@ describe('EventRepository', () => {
       await repo.insertBatch([event2]);
 
       const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
-      expect(result[0]!.count).toBe(1);
+      expect(result[0]!.count).toBe(2);
     });
 
     it('allows events with different content', async () => {

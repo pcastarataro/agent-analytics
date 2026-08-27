@@ -117,8 +117,9 @@ export interface EventRepository {
   findSessionEvents(sessionId: string): Promise<SessionDetail | null>;
 }
 
-function generateContentHash(event: UsageEvent): string {
+export function generateContentHash(event: UsageEvent): string {
   const dedupFields = JSON.stringify({
+    id: event.id,
     traceId: event.execution.traceId,
     parentId: event.execution.parentId,
     eventType: (event.execution as Record<string, unknown>).eventType,
@@ -200,7 +201,7 @@ export function createDrizzleRepository(
     async insertBatch(events: UsageEvent[]): Promise<number> {
       if (events.length === 0) return 0;
       const rows = events.map(toRow);
-      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.contentHash });
+      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.id });
       return rows.length;
     },
 
