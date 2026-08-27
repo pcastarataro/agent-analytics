@@ -158,6 +158,8 @@ export interface AgentDetail {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalCachedTokens: number;
+  distinctVersions: number;
+  byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   tokensBySkill: Array<{ name: string; tokens: number }>;
   recentEvents: UsageEventDTO[];
@@ -169,6 +171,8 @@ export interface SkillDetail {
   successRate: number;
   avgCost: number;
   totalCost: number;
+  distinctVersions: number;
+  byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];
@@ -193,6 +197,7 @@ export interface Definition {
   content: string;
   entityType: string;
   entityName: string;
+  version: string | null;
   createdAt: string;
   updatedAt: string;
 }

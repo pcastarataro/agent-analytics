@@ -58,7 +58,7 @@ export function DefinitionsPage() {
                 >
                   <p className="font-medium text-gray-900">{def.entityName}</p>
                   <p className="text-xs text-gray-500">
-                    {def.entityType} · {def.hash.slice(0, 8)}...
+                    {def.entityType} · {def.version ?? '—'} · {def.hash.slice(0, 8)}...
                   </p>
                 </button>
               ))}
@@ -72,7 +72,7 @@ export function DefinitionsPage() {
                   <div>
                     <h3 className="font-medium text-gray-900">{selected.entityName}</h3>
                     <p className="text-xs text-gray-500">
-                      {selected.entityType} · Updated {new Date(selected.updatedAt).toLocaleString()}
+                      {selected.entityType} · {selected.version ? `v${selected.version}` : 'no version'} · Updated {new Date(selected.updatedAt).toLocaleString()}
                     </p>
                   </div>
                   <Link

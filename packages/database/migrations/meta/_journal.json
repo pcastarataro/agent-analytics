@@ -28,6 +28,24 @@
         "id": "0002_add_content_hash_dedup",
         "createdAt": "2026-08-27T00:00:00.000Z"
       }
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "dialect": "postgresql",
+      "entry": {
+        "id": "0003_definitions",
+        "createdAt": "2026-08-27T00:00:00.000Z"
+      }
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "dialect": "postgresql",
+      "entry": {
+        "id": "0004_add_definition_version",
+        "createdAt": "2026-08-27T00:00:00.000Z"
+      }
     }
   ]
 }

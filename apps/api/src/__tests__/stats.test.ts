@@ -285,3 +285,64 @@ describe('GET /v1/stats/users', () => {
     expect(res.body.data).toEqual([]);
   });
 });
+
+describe('GET /v1/stats/agents/:name', () => {
+  let app: ReturnType<typeof createApp>;
+  let repo: EventRepository;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+    const config = loadConfig({
+      port: 0,
+      databaseUrl: 'postgresql://localhost:5432/test',
+      corsOrigins: ['http://localhost:5173'],
+    });
+    app = createApp(config, repo);
+  });
+
+  it('returns full response shape with byVersion array', async () => {
+    const { default: request } = await import('supertest');
+
+    const mockDetail = {
+      agentName: 'alpha',
+      totalEvents: 50,
+      successRate: 96.0,
+      avgDurationMs: 1200,
+      totalCost: 0.45,
+      avgCost: 0.009,
+      totalInputTokens: 10000,
+      totalOutputTokens: 5000,
+      totalCachedTokens: 1000,
+      distinctVersions: 2,
+      byVersion: [
+        { version: '1.0.0', executionCount: 30, successRate: 93.3, totalCost: 0.27 },
+        { version: '1.1.0', executionCount: 20, successRate: 100.0, totalCost: 0.18 },
+      ],
+      eventsOverTime: [{ date: '2026-01-15', count: 50 }],
+      tokensBySkill: [{ name: 'sdd-apply', tokens: 15000 }],
+      recentEvents: [],
+    };
+
+    (repo.getAgentDetail as jest.Mock).mockResolvedValueOnce(mockDetail);
+
+    const res = await request(app).get('/v1/stats/agents/alpha');
+
+    expect(res.status).toBe(200);
+    expect(res.body.agentName).toBe('alpha');
+    expect(res.body.distinctVersions).toBe(2);
+    expect(res.body.byVersion).toHaveLength(2);
+    expect(res.body.byVersion[0].version).toBe('1.0.0');
+    expect(res.body.byVersion[1].version).toBe('1.1.0');
+  });
+
+  it('returns 404 for nonexistent agent', async () => {
+    const { default: request } = await import('supertest');
+
+    (repo.getAgentDetail as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app).get('/v1/stats/agents/nonexistent');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Agent not found');
+  });
+});

@@ -5,7 +5,7 @@ import postgres from 'postgres';
 import type { UsageEvent } from '@agent-analytics/event-schema';
 import { usageEventSchema } from '@agent-analytics/event-schema';
 
-import { usageEvents } from '../schema';
+import { usageEvents, definitions } from '../schema';
 import {
   createDrizzleRepository,
   generateContentHash,
@@ -501,6 +501,219 @@ describe('EventRepository', () => {
     it('returns empty array when no events', async () => {
       const stats = await repo.getUserStats();
       expect(stats).toEqual([]);
+    });
+  });
+
+  describe('getAgentDetail - version breakdown', () => {
+    it('returns correct distinctVersions and byVersion for multi-version events', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'alpha', version: '1.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 1000, cost: 0.1 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'alpha', version: '1.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 1500, cost: 0.15 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000003',
+          agent: { name: 'alpha', version: '1.1.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 2000, cost: 0.2 },
+          result: { status: 'error' },
+        }),
+      ]);
+
+      const detail = await repo.getAgentDetail('alpha');
+
+      expect(detail).not.toBeNull();
+      expect(detail!.distinctVersions).toBe(2);
+      expect(detail!.byVersion).toHaveLength(2);
+
+      const v1 = detail!.byVersion.find((v) => v.version === '1.0.0');
+      expect(v1).toBeDefined();
+      expect(v1!.executionCount).toBe(2);
+      expect(v1!.successRate).toBe(100);
+      expect(v1!.totalCost).toBeCloseTo(0.25);
+
+      const v2 = detail!.byVersion.find((v) => v.version === '1.1.0');
+      expect(v2).toBeDefined();
+      expect(v2!.executionCount).toBe(1);
+      expect(v2!.successRate).toBe(0);
+    });
+
+    it('returns 404/throws for unknown agent', async () => {
+      const detail = await repo.getAgentDetail('nonexistent');
+      expect(detail).toBeNull();
+    });
+
+    it('returns single version when all events share version', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'beta', version: '1.0.0' } as UsageEvent['agent'],
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'beta', version: '1.0.0' } as UsageEvent['agent'],
+        }),
+      ]);
+
+      const detail = await repo.getAgentDetail('beta');
+
+      expect(detail).not.toBeNull();
+      expect(detail!.distinctVersions).toBe(1);
+      expect(detail!.byVersion).toHaveLength(1);
+      expect(detail!.byVersion[0]!.version).toBe('1.0.0');
+    });
+  });
+
+  describe('getSkillDetail - version breakdown', () => {
+    it('returns correct distinctVersions and byVersion for multi-version events', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-2000-7000-8000-000000000001',
+          skill: { name: 'gamma', version: '2.0.0' } as UsageEvent['skill'],
+          metrics: { durationMs: 800, cost: 0.08 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-2000-7000-8000-000000000002',
+          skill: { name: 'gamma', version: '2.0.0' } as UsageEvent['skill'],
+          metrics: { durationMs: 900, cost: 0.09 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-2000-7000-8000-000000000003',
+          skill: { name: 'gamma', version: '2.1.0' } as UsageEvent['skill'],
+          metrics: { durationMs: 700, cost: 0.07 },
+          result: { status: 'error' },
+        }),
+      ]);
+
+      const detail = await repo.getSkillDetail('gamma');
+
+      expect(detail).not.toBeNull();
+      expect(detail!.distinctVersions).toBe(2);
+      expect(detail!.byVersion).toHaveLength(2);
+
+      const v1 = detail!.byVersion.find((v) => v.version === '2.0.0');
+      expect(v1).toBeDefined();
+      expect(v1!.executionCount).toBe(2);
+      expect(v1!.successRate).toBe(100);
+      expect(v1!.totalCost).toBeCloseTo(0.17);
+
+      const v2 = detail!.byVersion.find((v) => v.version === '2.1.0');
+      expect(v2).toBeDefined();
+      expect(v2!.executionCount).toBe(1);
+      expect(v2!.successRate).toBe(0);
+    });
+
+    it('returns null for unknown skill', async () => {
+      const detail = await repo.getSkillDetail('nonexistent');
+      expect(detail).toBeNull();
+    });
+
+    it('returns single version when all events share version', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-2000-7000-8000-000000000004',
+          skill: { name: 'delta', version: '3.0.0' } as UsageEvent['skill'],
+        }),
+        makeEvent({
+          id: '0192e000-2000-7000-8000-000000000005',
+          skill: { name: 'delta', version: '3.0.0' } as UsageEvent['skill'],
+        }),
+      ]);
+
+      const detail = await repo.getSkillDetail('delta');
+
+      expect(detail).not.toBeNull();
+      expect(detail!.distinctVersions).toBe(1);
+      expect(detail!.byVersion).toHaveLength(1);
+      expect(detail!.byVersion[0]!.version).toBe('3.0.0');
+    });
+  });
+});
+
+describe('DefinitionRepository', () => {
+  beforeAll(async () => {
+    await db.execute(sql`DROP TABLE IF EXISTS "definitions"`);
+    await db.execute(sql`CREATE TABLE "definitions" (
+      "hash" text PRIMARY KEY NOT NULL,
+      "content" text NOT NULL,
+      "entity_type" text NOT NULL,
+      "entity_name" text NOT NULL,
+      "version" text,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL
+    )`);
+  });
+
+  afterAll(async () => {
+    await db.execute(sql`DROP TABLE IF EXISTS "definitions"`);
+  });
+
+  beforeEach(async () => {
+    await db.delete(definitions);
+  });
+
+  describe('upsertDefinition', () => {
+    it('sets version when provided', async () => {
+      await repo.upsertDefinition('hash-1', 'content-1', 'agent', 'my-agent', '1.0.0');
+      const def = await repo.getDefinitionByHash('hash-1');
+      expect(def).not.toBeNull();
+      expect(def!.version).toBe('1.0.0');
+    });
+
+    it('leaves version NULL when not provided', async () => {
+      await repo.upsertDefinition('hash-2', 'content-2', 'skill', 'my-skill');
+      const def = await repo.getDefinitionByHash('hash-2');
+      expect(def).not.toBeNull();
+      expect(def!.version).toBeNull();
+    });
+
+    it('updates version on conflict', async () => {
+      await repo.upsertDefinition('hash-3', 'content-3', 'agent', 'my-agent', '1.0.0');
+      await repo.upsertDefinition('hash-3', 'content-3-v2', 'agent', 'my-agent', '2.0.0');
+      const def = await repo.getDefinitionByHash('hash-3');
+      expect(def).not.toBeNull();
+      expect(def!.version).toBe('2.0.0');
+      expect(def!.content).toBe('content-3-v2');
+    });
+  });
+
+  describe('getDefinitionByHash', () => {
+    it('returns version field', async () => {
+      await repo.upsertDefinition('hash-4', 'content-4', 'agent', 'my-agent', '3.0.0');
+      const def = await repo.getDefinitionByHash('hash-4');
+      expect(def).not.toBeNull();
+      expect(def!.version).toBe('3.0.0');
+      expect(def!.hash).toBe('hash-4');
+      expect(def!.entityType).toBe('agent');
+      expect(def!.entityName).toBe('my-agent');
+    });
+
+    it('returns null for non-existent hash', async () => {
+      const def = await repo.getDefinitionByHash('nonexistent');
+      expect(def).toBeNull();
+    });
+  });
+
+  describe('getDefinitionsByEntity', () => {
+    it('includes version in returned definitions', async () => {
+      await repo.upsertDefinition('hash-5', 'content-5', 'agent', 'alpha', '1.0.0');
+      await repo.upsertDefinition('hash-6', 'content-6', 'agent', 'alpha', '2.0.0');
+      await repo.upsertDefinition('hash-7', 'content-7', 'agent', 'beta', null);
+
+      const agentDefs = await repo.getDefinitionsByEntity('agent', 'alpha');
+      expect(agentDefs).toHaveLength(2);
+      expect(agentDefs.every((d) => d.entityName === 'alpha')).toBe(true);
+      expect(agentDefs.some((d) => d.version === '1.0.0')).toBe(true);
+      expect(agentDefs.some((d) => d.version === '2.0.0')).toBe(true);
     });
   });
 });

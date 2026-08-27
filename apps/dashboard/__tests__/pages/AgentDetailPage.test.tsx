@@ -40,6 +40,11 @@ const agentData: AgentDetail = {
   totalInputTokens: 70,
   totalOutputTokens: 130,
   totalCachedTokens: 20,
+  distinctVersions: 2,
+  byVersion: [
+    { version: '1.0.0', executionCount: 1, successRate: 100, totalCost: 0.01 },
+    { version: '1.1.0', executionCount: 1, successRate: 100, totalCost: 0.005 },
+  ],
   eventsOverTime: [
     { date: '2025-01-15', count: 2 },
   ],
@@ -48,8 +53,8 @@ const agentData: AgentDetail = {
     { name: 'pr-review', tokens: 50 },
   ],
   recentEvents: [
-    makeEvent({ skill: { name: 'sdd-apply' }, metrics: { inputTokens: 50, outputTokens: 100, cost: 0.01 } }),
-    makeEvent({ id: 'evt-2', skill: { name: 'pr-review' }, metrics: { inputTokens: 20, outputTokens: 30, cost: 0.005 } }),
+    makeEvent({ skill: { name: 'sdd-apply', version: '1.0.0' }, metrics: { inputTokens: 50, outputTokens: 100, cost: 0.01 } }),
+    makeEvent({ id: 'evt-2', skill: { name: 'pr-review', version: '1.1.0' }, metrics: { inputTokens: 20, outputTokens: 30, cost: 0.005 } }),
   ],
 };
 
@@ -84,10 +89,10 @@ describe('AgentDetailPage', () => {
     });
 
     expect(screen.getByText('Total Events')).toBeDefined();
-    expect(screen.getByText('2')).toBeDefined();
     expect(screen.getByText('Tokens by Skill')).toBeDefined();
     expect(screen.getByText('Events Over Time')).toBeDefined();
     expect(screen.getByText('Recent Events')).toBeDefined();
+    expect(screen.getByText('Distinct Versions')).toBeDefined();
   });
 
   it('shows error on API failure', async () => {
@@ -115,5 +120,40 @@ describe('AgentDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('← Agents')).toBeDefined();
     });
+  });
+
+  it('renders version breakdown table with byVersion data', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(agentData),
+    } as Response);
+
+    renderAgentPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Version Breakdown')).toBeDefined();
+    });
+
+    // Versions appear in both breakdown table and recent events
+    expect(screen.getAllByText('1.0.0').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('1.1.0').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Distinct Versions')).toBeDefined();
+  });
+
+  it('renders version column in recent events table', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(agentData),
+    } as Response);
+
+    renderAgentPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Recent Events')).toBeDefined();
+    });
+
+    // Version column header should be present (appears in both breakdown and events tables)
+    const versionElements = screen.getAllByText('Version');
+    expect(versionElements.length).toBeGreaterThanOrEqual(2);
   });
 });

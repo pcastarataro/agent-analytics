@@ -29,13 +29,16 @@ export function SkillDetailPage() {
 
   useEffect(() => {
     if (!skillName) return;
-    const hash = skillName;
-    fetch(`/v1/definitions/${encodeURIComponent(hash)}`)
+    // Fetch all definitions for this skill and pick the latest one
+    fetch(`/v1/definitions?entityType=skill&entityName=${encodeURIComponent(skillName)}`)
       .then((res) => {
-        if (!res.ok) return null;
+        if (!res.ok) return { data: [] };
         return res.json();
       })
-      .then((def) => setDefinition(def))
+      .then((json) => {
+        const defs = json.data ?? [];
+        setDefinition(defs.length > 0 ? defs[defs.length - 1] : null);
+      })
       .catch(() => setDefinition(null));
   }, [skillName]);
 
@@ -77,7 +80,49 @@ export function SkillDetailPage() {
             {data.totalEvents.toLocaleString()}
           </p>
         </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">Distinct Versions</p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">
+            {data.distinctVersions}
+          </p>
+        </div>
       </div>
+
+      {data.byVersion.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Version Breakdown</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase text-gray-500">
+                  <th className="px-3 py-2">Version</th>
+                  <th className="px-3 py-2">Executions</th>
+                  <th className="px-3 py-2">Success Rate</th>
+                  <th className="px-3 py-2">Total Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.byVersion.map((v) => (
+                  <tr key={v.version} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-900">
+                      {v.version}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      {v.executionCount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      {v.successRate.toFixed(1)}%
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      ${v.totalCost.toFixed(4)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -151,6 +196,7 @@ export function SkillDetailPage() {
                 <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase text-gray-500">
                   <th className="px-3 py-2">Timestamp</th>
                   <th className="px-3 py-2">Agent</th>
+                  <th className="px-3 py-2">Version</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Tokens</th>
                   <th className="px-3 py-2">Cost</th>
@@ -164,6 +210,9 @@ export function SkillDetailPage() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-gray-600">
                       {e.agent?.name ?? '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      {e.skill?.version ?? '—'}
                     </td>
                     <td className="px-3 py-2">
                       <span

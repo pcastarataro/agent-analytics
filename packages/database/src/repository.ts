@@ -142,6 +142,8 @@ export interface AgentDetail {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalCachedTokens: number;
+  distinctVersions: number;
+  byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   tokensBySkill: Array<{ name: string; tokens: number }>;
   recentEvents: UsageEvent[];
@@ -153,6 +155,8 @@ export interface SkillDetail {
   successRate: number;
   avgCost: number;
   totalCost: number;
+  distinctVersions: number;
+  byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEvent[];
@@ -177,6 +181,7 @@ export interface Definition {
   content: string;
   entityType: string;
   entityName: string;
+  version: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -203,7 +208,7 @@ export interface EventRepository {
   getSkillDetail(skillName: string): Promise<SkillDetail | null>;
   getUserDetail(userId: string): Promise<UserDetail | null>;
   getDefinitionByHash(hash: string): Promise<Definition | null>;
-  upsertDefinition(hash: string, content: string, entityType: string, entityName: string): Promise<void>;
+  upsertDefinition(hash: string, content: string, entityType: string, entityName: string, version?: string | null): Promise<void>;
   getDefinitionsByEntity(entityType: string, entityName: string): Promise<Definition[]>;
 }
 
@@ -776,6 +781,25 @@ export function createDrizzleRepository(
         .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
         .orderBy(sql`sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint + (${usageEvents.metrics}::jsonb->>'outputTokens')::bigint) desc`);
 
+      const byVersionRows = await db
+        .select({
+          version: sql<string>`coalesce(${usageEvents.agent}::jsonb->>'version', 'unknown')`,
+          executionCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(sql`${usageEvents.agent}::jsonb->>'version'`)
+        .orderBy(sql`count(*) desc`);
+
+      const byVersion = byVersionRows.map((row) => ({
+        version: row.version,
+        executionCount: row.executionCount,
+        successRate: Number(row.successRate),
+        totalCost: Number(row.totalCost),
+      }));
+
       const recentRows = await db
         .select()
         .from(usageEvents)
@@ -793,6 +817,8 @@ export function createDrizzleRepository(
         totalInputTokens: Number(stats.totalInputTokens),
         totalOutputTokens: Number(stats.totalOutputTokens),
         totalCachedTokens: Number(stats.totalCachedTokens),
+        distinctVersions: byVersion.length,
+        byVersion,
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         tokensBySkill: tokensBySkillRows.map((r) => ({ name: r.name, tokens: Number(r.tokens) })),
         recentEvents: recentRows.map(toEvent),
@@ -834,6 +860,25 @@ export function createDrizzleRepository(
         .groupBy(dateColumn)
         .orderBy(dateColumn);
 
+      const byVersionRows = await db
+        .select({
+          version: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'version', 'unknown')`,
+          executionCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'version'`)
+        .orderBy(sql`count(*) desc`);
+
+      const byVersion = byVersionRows.map((row) => ({
+        version: row.version,
+        executionCount: row.executionCount,
+        successRate: Number(row.successRate),
+        totalCost: Number(row.totalCost),
+      }));
+
       const recentRows = await db
         .select()
         .from(usageEvents)
@@ -847,6 +892,8 @@ export function createDrizzleRepository(
         successRate: Number(stats.successRate),
         avgCost: Number(stats.avgCost),
         totalCost: Number(stats.totalCost),
+        distinctVersions: byVersion.length,
+        byVersion,
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),
@@ -921,6 +968,7 @@ export function createDrizzleRepository(
         content: row.content,
         entityType: row.entityType,
         entityName: row.entityName,
+        version: row.version,
         createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
         updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
       };
@@ -931,13 +979,14 @@ export function createDrizzleRepository(
       content: string,
       entityType: string,
       entityName: string,
+      version?: string | null,
     ): Promise<void> {
       await db
         .insert(definitions)
-        .values({ hash, content, entityType, entityName })
+        .values({ hash, content, entityType, entityName, version: version ?? null })
         .onConflictDoUpdate({
           target: definitions.hash,
-          set: { content, entityType, entityName, updatedAt: new Date() },
+          set: { content, entityType, entityName, version: version ?? null, updatedAt: new Date() },
         });
     },
 
@@ -952,6 +1001,7 @@ export function createDrizzleRepository(
         content: row.content,
         entityType: row.entityType,
         entityName: row.entityName,
+        version: row.version,
         createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
         updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
       }));

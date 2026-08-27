@@ -1,4 +1,5 @@
 import { useApi } from '../hooks/useApi';
+import { Link } from 'react-router-dom';
 import type { SkillStat } from '../api/types';
 import { SortableTable, Column } from '../components/SortableTable';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -14,7 +15,18 @@ interface SkillStatRow extends Record<string, unknown> {
 }
 
 const columns: Column<SkillStatRow>[] = [
-  { key: 'skillName', label: 'Skill' },
+  {
+    key: 'skillName',
+    label: 'Skill',
+    render: (row) => (
+      <Link
+        to={`/skills/${encodeURIComponent(row.skillName)}`}
+        className="text-blue-600 hover:underline"
+      >
+        {row.skillName}
+      </Link>
+    ),
+  },
   { key: 'version', label: 'Version' },
   { key: 'executionCount', label: 'Executions', sortable: true },
   {

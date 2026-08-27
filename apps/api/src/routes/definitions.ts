@@ -7,6 +7,7 @@ const DefinitionBodySchema = z.object({
   content: z.string().min(1).max(65536),
   entityType: z.enum(['agent', 'skill']),
   entityName: z.string().min(1),
+  version: z.string().nullable().optional(),
 });
 
 export function createDefinitionRoutes(repository: EventRepository): Router {
@@ -56,8 +57,8 @@ export function createDefinitionRoutes(repository: EventRepository): Router {
           return;
         }
 
-        const { content, entityType, entityName } = parsed.data;
-        await repository.upsertDefinition(hash, content, entityType, entityName);
+        const { content, entityType, entityName, version } = parsed.data;
+        await repository.upsertDefinition(hash, content, entityType, entityName, version ?? null);
 
         const definition = await repository.getDefinitionByHash(hash);
         res.status(201).json(definition);
