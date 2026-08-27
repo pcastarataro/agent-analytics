@@ -8,8 +8,8 @@ const navItems = [
 export function Layout() {
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-56 shrink-0 border-r border-gray-200 bg-white p-4">
-        <h1 className="mb-6 text-lg font-bold text-gray-900">Agent Analytics</h1>
+      <aside className="w-16 shrink-0 border-r border-gray-200 bg-white p-3 sm:w-56 sm:p-4">
+        <h1 className="mb-6 hidden text-lg font-bold text-gray-900 sm:block">Agent Analytics</h1>
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => (
             <NavLink
@@ -24,12 +24,13 @@ export function Layout() {
                 }`
               }
             >
-              {item.label}
+              <span className="sm:hidden">{item.label.charAt(0)}</span>
+              <span className="hidden sm:inline">{item.label}</span>
             </NavLink>
           ))}
         </nav>
       </aside>
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto p-4 sm:p-6">
         <Outlet />
       </main>
     </div>
