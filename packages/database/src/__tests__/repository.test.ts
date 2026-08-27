@@ -48,7 +48,7 @@ beforeAll(async () => {
   await db.execute(sql`CREATE INDEX "idx_session_id" ON "usage_events" ("session_id")`);
   await db.execute(sql`CREATE INDEX "idx_timestamp" ON "usage_events" ("timestamp")`);
   await db.execute(sql`CREATE INDEX "idx_status" ON "usage_events" ("status")`);
-  await db.execute(sql`CREATE UNIQUE INDEX "idx_id_unique" ON "usage_events" ("id")`);
+  await db.execute(sql`CREATE UNIQUE INDEX "idx_content_hash_unique" ON "usage_events" ("content_hash")`);
 });
 
 afterAll(async () => {
@@ -110,7 +110,7 @@ describe('EventRepository', () => {
       expect(count).toBe(0);
     });
 
-    it('is idempotent for duplicate IDs', async () => {
+    it('deduplicates events with same contentHash (same ID)', async () => {
       const event = makeEvent();
       await repo.insertBatch([event]);
       const count = await repo.insertBatch([event]);
@@ -120,7 +120,7 @@ describe('EventRepository', () => {
       expect(result[0]!.count).toBe(1);
     });
 
-    it('deduplicates events with same ID', async () => {
+    it('deduplicates events with same contentHash across batches', async () => {
       const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
       const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
 
@@ -131,7 +131,7 @@ describe('EventRepository', () => {
       expect(result[0]!.count).toBe(1);
     });
 
-    it('allows events with different IDs even if content is identical', async () => {
+    it('allows events with different IDs (different contentHash)', async () => {
       const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
       const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000002' });
 
@@ -142,7 +142,7 @@ describe('EventRepository', () => {
       expect(result[0]!.count).toBe(2);
     });
 
-    it('allows events with different content', async () => {
+    it('allows events with different content (different contentHash)', async () => {
       const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001', result: { status: 'success' } });
       const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000002', result: { status: 'error' } });
 

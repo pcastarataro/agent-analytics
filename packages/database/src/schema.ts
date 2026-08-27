@@ -1,4 +1,4 @@
-import { jsonb, pgTable, index, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { jsonb, pgTable, index, uniqueIndex, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const usageEvents = pgTable(
   'usage_events',
@@ -27,7 +27,7 @@ export const usageEvents = pgTable(
     index('idx_event_type').on(table.eventType),
     index('idx_timestamp').on(table.timestamp),
     index('idx_status').on(table.status),
-    index('idx_content_hash').on(table.contentHash),
+    uniqueIndex('idx_content_hash_unique').on(table.contentHash),
   ],
 );
 

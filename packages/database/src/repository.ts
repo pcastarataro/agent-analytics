@@ -234,7 +234,7 @@ export function createDrizzleRepository(
     async insertBatch(events: UsageEvent[]): Promise<number> {
       if (events.length === 0) return 0;
       const rows = events.map(toRow);
-      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.id });
+      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.contentHash });
       return rows.length;
     },
 
