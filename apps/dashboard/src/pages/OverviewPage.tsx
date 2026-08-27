@@ -7,11 +7,13 @@ import { PerformanceSection } from './OverviewPage/PerformanceSection';
 import { QualitySection } from './OverviewPage/QualitySection';
 import { EvolutionSection } from './OverviewPage/EvolutionSection';
 import { EventsByAgent } from './OverviewPage/EventsByAgent';
-import { EventsByStatus } from './OverviewPage/EventsByStatus';
+import { CostByAgent } from './OverviewPage/CostByAgent';
 import { EventsOverTime } from './OverviewPage/EventsOverTime';
+import type { AgentStat } from '../api/types';
 
 export function OverviewPage() {
   const { data, loading, error, refetch } = useApi<StatsOverview>('/v1/stats/overview');
+  const { data: agentsData } = useApi<{ data: AgentStat[] }>('/v1/stats/agents');
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error.message} onRetry={refetch} />;
@@ -35,7 +37,7 @@ export function OverviewPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <EventsByAgent data={data.byAgent} />
-        <EventsByStatus data={data.byStatus} />
+        <CostByAgent data={agentsData?.data ?? []} />
       </div>
       <EventsOverTime data={data.byDate} />
     </div>

@@ -1,7 +1,8 @@
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { OverviewPage } from '../../src/pages/OverviewPage';
-import type { StatsOverview } from '../../src/api/types';
+import { CostByAgent } from '../../src/pages/OverviewPage/CostByAgent';
+import type { StatsOverview, AgentStat } from '../../src/api/types';
 
 vi.stubGlobal('fetch', vi.fn());
 const mockFetch = vi.mocked(globalThis.fetch);
@@ -21,7 +22,12 @@ const overviewData: StatsOverview = {
   byDate: { '2025-01-15': 20, '2025-01-16': 22 },
 };
 
-function mockOk(data: StatsOverview) {
+const agentStats: AgentStat[] = [
+  { agentName: 'alpha', version: '1.0', executionCount: 30, successRate: 90, avgDurationMs: 150, totalCost: 0.0123 },
+  { agentName: 'beta', version: '1.0', executionCount: 12, successRate: 85, avgDurationMs: 200, totalCost: 0.0045 },
+];
+
+function mockOk(data: unknown) {
   mockFetch.mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(data),
@@ -36,6 +42,22 @@ function mockError(status: number, statusText: string) {
   } as Response);
 }
 
+function mockOverviewAndAgents() {
+  mockFetch.mockImplementation((url: string | URL | Request | undefined) => {
+    const urlStr = String(url);
+    if (urlStr.includes('/v1/stats/agents')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data: agentStats }),
+      } as Response);
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(overviewData),
+    } as Response);
+  });
+}
+
 describe('OverviewPage', () => {
   it('shows loading spinner initially', () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
@@ -44,7 +66,7 @@ describe('OverviewPage', () => {
   });
 
   it('renders metric sections and charts from mock data', async () => {
-    mockOk(overviewData);
+    mockOverviewAndAgents();
     render(<OverviewPage />);
 
     await waitFor(() => {
@@ -57,7 +79,7 @@ describe('OverviewPage', () => {
     expect(screen.getByText('Performance')).toBeDefined();
     expect(screen.getByText('Quality')).toBeDefined();
     expect(screen.getByText('Events by Agent')).toBeDefined();
-    expect(screen.getByText('Events by Status')).toBeDefined();
+    expect(screen.getByText('Cost by Agent')).toBeDefined();
     expect(screen.getByText('Events Over Time')).toBeDefined();
   });
 
@@ -82,5 +104,37 @@ describe('OverviewPage', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Retry' })).toBeDefined();
+  });
+});
+
+describe('CostByAgent', () => {
+  it('renders chart with data', () => {
+    const { container } = render(<CostByAgent data={agentStats} />);
+    expect(screen.getByText('Cost by Agent')).toBeDefined();
+    expect(container.querySelector('.recharts-responsive-container')).not.toBeNull();
+  });
+
+  it('shows empty state when data is empty', () => {
+    render(<CostByAgent data={[]} />);
+    expect(screen.getByText('Cost by Agent')).toBeDefined();
+    expect(screen.getByText('No cost data')).toBeDefined();
+  });
+
+  it('filters out agents with zero cost', () => {
+    const dataWithZero: AgentStat[] = [
+      { agentName: 'gamma', version: '1.0', executionCount: 5, successRate: 100, avgDurationMs: 100, totalCost: 0 },
+      { agentName: 'alpha', version: '1.0', executionCount: 30, successRate: 90, avgDurationMs: 150, totalCost: 0.0123 },
+    ];
+    const { container } = render(<CostByAgent data={dataWithZero} />);
+    expect(screen.getByText('Cost by Agent')).toBeDefined();
+    expect(container.querySelector('.recharts-responsive-container')).not.toBeNull();
+  });
+
+  it('shows empty state when all agents have zero cost', () => {
+    const allZero: AgentStat[] = [
+      { agentName: 'gamma', version: '1.0', executionCount: 5, successRate: 100, avgDurationMs: 100, totalCost: 0 },
+    ];
+    render(<CostByAgent data={allZero} />);
+    expect(screen.getByText('No cost data')).toBeDefined();
   });
 });
