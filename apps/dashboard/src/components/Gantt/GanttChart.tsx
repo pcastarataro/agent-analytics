@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { SessionEvent } from '../../api/types';
-import { GanttTimeAxis } from './GanttTimeAxis';
+import { EVENT_COLORS } from './eventColors';
 import { GanttTooltip } from './GanttTooltip';
 
 export interface GanttChartProps {
@@ -14,15 +14,42 @@ const ROW_GAP = 4;
 const PADDING = 60;
 const HEADER_HEIGHT = 32;
 const MIN_BAR_WIDTH = 2;
+const DEFAULT_MAX_HEIGHT = 600;
 
-const EVENT_COLORS: Record<string, string> = {
-  session_created: '#3B82F6',
-  user_message: '#10B981',
-  assistant_message: '#8B5CF6',
-  tool_call: '#F59E0B',
-  skill_call: '#14B8A6',
-  unknown: '#6B7280',
-};
+/** Derive a human-readable row label from event context. */
+function getRowLabel(event: SessionEvent): string {
+  if (event.eventType === 'tool_call') {
+    const name = (event.tool as Record<string, unknown>)?.name;
+    if (name != null) return String(name);
+  }
+  if (event.eventType === 'skill_call' && event.skill?.name) {
+    return event.skill.name;
+  }
+  return event.eventType;
+}
+
+function getTickInterval(totalRange: number): number {
+  if (totalRange > 3600_000) return 600_000;
+  if (totalRange > 300_000) return 60_000;
+  if (totalRange > 60_000) return 30_000;
+  return 10_000;
+}
+
+function formatTickLabel(elapsedMs: number, totalRange: number): string {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (totalRange > 3600_000) {
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+  if (totalRange > 60_000) {
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  const ms = Math.floor((elapsedMs % 1000) / 10);
+  return `${String(seconds).padStart(2, '0')}.${String(ms).padStart(2, '0')}s`;
+}
 
 export function GanttChart({ events, width = 800, height }: GanttChartProps) {
   const [hoveredEvent, setHoveredEvent] = useState<SessionEvent | null>(null);
@@ -55,8 +82,24 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
     };
   }, [sortedEvents]);
 
-  const chartHeight =
-    height ?? HEADER_HEIGHT + sortedEvents.length * (ROW_HEIGHT + ROW_GAP) + 40;
+  // Compute tick positions for grid lines and time axis labels
+  const ticks = useMemo(() => {
+    if (totalRange <= 0) return [];
+    const interval = getTickInterval(totalRange);
+    const startTick = Math.ceil(minTime / interval) * interval;
+    const result: { x: number; label: string }[] = [];
+    for (let t = startTick; t <= maxTime; t += interval) {
+      const pct = (t - minTime) / totalRange;
+      result.push({
+        x: PADDING + pct * (width - 2 * PADDING),
+        label: formatTickLabel(t - minTime, totalRange),
+      });
+    }
+    return result;
+  }, [minTime, maxTime, totalRange, width]);
+
+  const eventsContentHeight = sortedEvents.length * (ROW_HEIGHT + ROW_GAP);
+  const containerMaxHeight = height ?? DEFAULT_MAX_HEIGHT;
 
   const handleMouseEnter = useCallback((event: SessionEvent, e: React.MouseEvent) => {
     setHoveredEvent(event);
@@ -83,23 +126,59 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
   }
 
   return (
-    <div className="gantt-container relative overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div
+      className="gantt-container relative rounded-lg border border-gray-200 bg-white"
+      style={{ maxHeight: containerMaxHeight, overflowY: 'auto' }}
+    >
+      {/* Sticky time axis */}
+      <div
+        className="sticky top-0 z-10 bg-white"
+        style={{ position: 'sticky', top: 0 }}
+      >
+        <svg
+          width="100%"
+          height={HEADER_HEIGHT}
+          viewBox={`0 0 ${width} ${HEADER_HEIGHT}`}
+          preserveAspectRatio="xMinYMin meet"
+          className="min-w-full"
+        >
+          {ticks.map((tick, i) => (
+            <text
+              key={i}
+              x={tick.x}
+              y={20}
+              textAnchor="middle"
+              fontSize={11}
+              fill="#6B7280"
+              fontFamily="monospace"
+            >
+              {tick.label}
+            </text>
+          ))}
+        </svg>
+      </div>
+
+      {/* Scrollable event bars with grid lines */}
       <svg
         width="100%"
-        height={chartHeight}
-        viewBox={`0 0 ${width} ${chartHeight}`}
+        height={eventsContentHeight}
+        viewBox={`0 0 ${width} ${eventsContentHeight}`}
         preserveAspectRatio="xMinYMin meet"
         className="min-w-full"
       >
-        {/* Time axis */}
-        <g transform={`translate(0, ${HEADER_HEIGHT})`}>
-          <GanttTimeAxis
-            minTime={minTime}
-            maxTime={maxTime}
-            chartWidth={width}
-            padding={PADDING}
+        {/* Grid lines */}
+        {ticks.map((tick, i) => (
+          <line
+            key={`grid-${i}`}
+            x1={tick.x}
+            y1={0}
+            x2={tick.x}
+            y2={eventsContentHeight}
+            stroke="#E5E7EB"
+            strokeWidth={1}
+            strokeDasharray="4 4"
           />
-        </g>
+        ))}
 
         {/* Event bars */}
         {sortedEvents.map((event, index) => {
@@ -111,7 +190,7 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
             durationMs > 0
               ? Math.max((durationMs / totalRange) * (width - 2 * PADDING), MIN_BAR_WIDTH)
               : 0;
-          const y = HEADER_HEIGHT + index * (ROW_HEIGHT + ROW_GAP);
+          const y = index * (ROW_HEIGHT + ROW_GAP);
           const color = EVENT_COLORS[event.eventType] ?? EVENT_COLORS.unknown;
 
           return (
@@ -140,7 +219,7 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
                 fill="#6B7280"
                 fontFamily="monospace"
               >
-                {event.eventType}
+                {getRowLabel(event)}
               </text>
 
               {/* Bar or dot */}
@@ -172,8 +251,11 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
       {/* Tooltip overlay */}
       <GanttTooltip event={hoveredEvent} position={tooltipPos} />
 
-      {/* Color legend */}
-      <div className="flex flex-wrap gap-4 border-t border-gray-100 px-4 py-2">
+      {/* Sticky color legend */}
+      <div
+        className="sticky bottom-0 z-10 flex flex-wrap gap-4 border-t border-gray-100 bg-white px-4 py-2"
+        style={{ position: 'sticky', bottom: 0 }}
+      >
         {Object.entries(EVENT_COLORS).map(([type, color]) => (
           <div key={type} className="flex items-center gap-1.5">
             <span

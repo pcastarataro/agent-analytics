@@ -1,17 +1,10 @@
 import type { SessionEvent } from '../../api/types';
+import { EVENT_COLORS } from './eventColors';
 
 interface GanttTooltipProps {
   event: SessionEvent | null;
   position: { x: number; y: number } | null;
 }
-
-const EVENT_COLORS: Record<string, string> = {
-  tool_call: '#3B82F6',
-  assistant_message: '#10B981',
-  user_message: '#F59E0B',
-  session_created: '#6B7280',
-  unknown: '#D1D5DB',
-};
 
 function formatDuration(ms?: number): string {
   if (ms === undefined || ms === null) return 'instant';

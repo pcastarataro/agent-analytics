@@ -39,11 +39,11 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: GanttChart Improvements (PR3 — medium risk)
 
-- [ ] 3.1 Create `apps/dashboard/src/components/Gantt/eventColors.ts` exporting `EVENT_COLORS` constant with 6 event-type→color mappings (~12 lines)
-- [ ] 3.2 In `apps/dashboard/src/components/Gantt/GanttTooltip.tsx`, replace local color map with import from `eventColors.ts` (~5 lines changed)
-- [ ] 3.3 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, import shared `EVENT_COLORS`; replace inline color lookup (~8 lines changed)
-- [ ] 3.4 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, enhance row label logic: `tool_call` → `event.tool?.name`, `skill_call` → `event.skill?.name`, others → event type (~15 lines)
-- [ ] 3.5 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, restructure layout: wrap time-axis in sticky header div (`position: sticky; top: 0`), wrap event bars in scrollable middle div, wrap legend in sticky footer div (`position: sticky; bottom: 0`) (~25 lines)
+- [x] 3.1 Create `apps/dashboard/src/components/Gantt/eventColors.ts` exporting `EVENT_COLORS` constant with 6 event-type→color mappings (~12 lines)
+- [x] 3.2 In `apps/dashboard/src/components/Gantt/GanttTooltip.tsx`, replace local color map with import from `eventColors.ts` (~5 lines changed)
+- [x] 3.3 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, import shared `EVENT_COLORS`; replace inline color lookup (~8 lines changed)
+- [x] 3.4 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, enhance row label logic: `tool_call` → `event.tool?.name`, `skill_call` → `event.skill?.name`, others → event type (~15 lines)
+- [x] 3.5 In `apps/dashboard/src/components/Gantt/GanttChart.tsx`, restructure layout: wrap time-axis in sticky header div (`position: sticky; top: 0`), wrap event bars in scrollable middle div, wrap legend in sticky footer div (`position: sticky; bottom: 0`) (~25 lines)
 
 ## Phase 4: Event Dedup Fix (PR4 — medium risk)
 
