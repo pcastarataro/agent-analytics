@@ -10,6 +10,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/opencode-collector/package.json packages/opencode-collector/
 
 RUN npm ci
+RUN npm install tsx
 
 COPY apps/api/ apps/api/
 COPY packages/event-schema/ packages/event-schema/
@@ -25,4 +26,4 @@ COPY --from=builder /app .
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "apps/api/src/main.ts"]
+CMD ["node_modules/.bin/tsx", "apps/api/src/main.ts"]
