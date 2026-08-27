@@ -9,6 +9,10 @@ interface UserStatRow extends Record<string, unknown> {
   eventCount: number;
   distinctAgents: number;
   distinctSkills: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  totalCost: number;
   firstSeenAt: string;
   lastSeenAt: string;
 }
@@ -22,11 +26,47 @@ function formatDate(val: unknown): string {
   }
 }
 
+function formatNumber(val: unknown): string {
+  const num = Number(val);
+  if (!num) return '0';
+  return num.toLocaleString('en-US');
+}
+
+function formatCost(val: unknown): string {
+  const num = Number(val);
+  if (!num) return '$0.00';
+  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+}
+
 const columns: Column<UserStatRow>[] = [
   { key: 'userId', label: 'User' },
   { key: 'eventCount', label: 'Events', sortable: true },
   { key: 'distinctAgents', label: 'Agents', sortable: true },
   { key: 'distinctSkills', label: 'Skills', sortable: true },
+  {
+    key: 'totalInputTokens',
+    label: 'Input Tokens',
+    sortable: true,
+    render: (row) => formatNumber(row.totalInputTokens),
+  },
+  {
+    key: 'totalOutputTokens',
+    label: 'Output Tokens',
+    sortable: true,
+    render: (row) => formatNumber(row.totalOutputTokens),
+  },
+  {
+    key: 'totalCachedTokens',
+    label: 'Cached Tokens',
+    sortable: true,
+    render: (row) => formatNumber(row.totalCachedTokens),
+  },
+  {
+    key: 'totalCost',
+    label: 'Cost',
+    sortable: true,
+    render: (row) => formatCost(row.totalCost),
+  },
   {
     key: 'firstSeenAt',
     label: 'First Seen',
