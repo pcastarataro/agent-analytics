@@ -31,5 +31,17 @@ export const usageEvents = pgTable(
   ],
 );
 
+export const definitions = pgTable('definitions', {
+  hash: text('hash').primaryKey(),
+  content: text('content').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityName: text('entity_name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type DefinitionRow = typeof definitions.$inferSelect;
+export type DefinitionInsert = typeof definitions.$inferInsert;
+
 export type UsageEventRow = typeof usageEvents.$inferSelect;
 export type UsageEventInsert = typeof usageEvents.$inferInsert;

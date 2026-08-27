@@ -4,7 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { UsageEvent } from '@agent-analytics/event-schema';
 
-import { usageEvents, type UsageEventInsert } from './schema';
+import { usageEvents, definitions, type UsageEventInsert } from './schema';
 
 export interface DateFilters {
   from?: Date;
@@ -172,6 +172,15 @@ export interface UserDetail {
   recentEvents: UsageEvent[];
 }
 
+export interface Definition {
+  hash: string;
+  content: string;
+  entityType: string;
+  entityName: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface EventRepository {
   insertBatch(events: UsageEvent[]): Promise<number>;
   findById(id: string): Promise<UsageEvent | null>;
@@ -193,6 +202,9 @@ export interface EventRepository {
   getAgentDetail(agentName: string): Promise<AgentDetail | null>;
   getSkillDetail(skillName: string): Promise<SkillDetail | null>;
   getUserDetail(userId: string): Promise<UserDetail | null>;
+  getDefinitionByHash(hash: string): Promise<Definition | null>;
+  upsertDefinition(hash: string, content: string, entityType: string, entityName: string): Promise<void>;
+  getDefinitionsByEntity(entityType: string, entityName: string): Promise<Definition[]>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -899,6 +911,50 @@ export function createDrizzleRepository(
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         recentEvents: recentRows.map(toEvent),
       };
+    },
+
+    async getDefinitionByHash(hash: string): Promise<Definition | null> {
+      const [row] = await db.select().from(definitions).where(eq(definitions.hash, hash)).limit(1);
+      if (!row) return null;
+      return {
+        hash: row.hash,
+        content: row.content,
+        entityType: row.entityType,
+        entityName: row.entityName,
+        createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
+      };
+    },
+
+    async upsertDefinition(
+      hash: string,
+      content: string,
+      entityType: string,
+      entityName: string,
+    ): Promise<void> {
+      await db
+        .insert(definitions)
+        .values({ hash, content, entityType, entityName })
+        .onConflictDoUpdate({
+          target: definitions.hash,
+          set: { content, entityType, entityName, updatedAt: new Date() },
+        });
+    },
+
+    async getDefinitionsByEntity(entityType: string, entityName: string): Promise<Definition[]> {
+      const rows = await db
+        .select()
+        .from(definitions)
+        .where(and(eq(definitions.entityType, entityType), eq(definitions.entityName, entityName)))
+        .orderBy(definitions.updatedAt);
+      return rows.map((row) => ({
+        hash: row.hash,
+        content: row.content,
+        entityType: row.entityType,
+        entityName: row.entityName,
+        createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
+      }));
     },
   };
 }

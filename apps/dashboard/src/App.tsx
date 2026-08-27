@@ -11,6 +11,7 @@ import { SkillsPage } from './pages/SkillsPage';
 import { UsersPage } from './pages/UsersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { SkillDetailPage } from './pages/SkillDetailPage';
+import { DefinitionsPage } from './pages/DefinitionsPage';
 
 export function App() {
   return (
@@ -28,6 +29,8 @@ export function App() {
             <Route path="/users/:userId" element={<UserDetailPage />} />
             <Route path="/sessions" element={<SessionsListPage />} />
             <Route path="/sessions/:traceId" element={<SessionDetailPage />} />
+            <Route path="/definitions" element={<DefinitionsPage />} />
+            <Route path="/definitions/:hash" element={<DefinitionsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

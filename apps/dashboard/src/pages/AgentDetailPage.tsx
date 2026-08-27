@@ -1,8 +1,11 @@
 import { useParams, Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
-import type { AgentDetail } from '../api/types';
+import type { AgentDetail, Definition } from '../api/types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
+import { MarkdownViewer } from '../components/MarkdownViewer';
+import { DefinitionUpload } from '../components/DefinitionUpload';
+import { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -20,6 +23,21 @@ export function AgentDetailPage() {
   const { data, loading, error, refetch } = useApi<AgentDetail>(
     `/v1/stats/agents/${encodeURIComponent(name ?? '')}`,
   );
+
+  const [definition, setDefinition] = useState<Definition | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+
+  useEffect(() => {
+    if (!name) return;
+    const hash = name;
+    fetch(`/v1/definitions/${encodeURIComponent(hash)}`)
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((def) => setDefinition(def))
+      .catch(() => setDefinition(null));
+  }, [name]);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error.message} onRetry={refetch} />;
@@ -105,6 +123,33 @@ export function AgentDetailPage() {
             </ResponsiveContainer>
           )}
         </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-700">Definition</h3>
+          <button
+            onClick={() => setShowUpload(!showUpload)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {showUpload ? 'Cancel' : definition ? 'Edit' : 'Add definition'}
+          </button>
+        </div>
+        {showUpload ? (
+          <DefinitionUpload
+            entityType="agent"
+            entityName={data.agentName}
+            existingDefinition={definition}
+            onSaved={(def) => {
+              setDefinition(def);
+              setShowUpload(false);
+            }}
+          />
+        ) : definition ? (
+          <MarkdownViewer content={definition.content} />
+        ) : (
+          <p className="text-sm text-gray-500">No definition uploaded.</p>
+        )}
       </div>
 
       {data.recentEvents.length > 0 && (

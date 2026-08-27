@@ -46,6 +46,9 @@ function createMockRepository(): EventRepository {
     getAgentDetail: jest.fn().mockResolvedValue(null),
     getSkillDetail: jest.fn().mockResolvedValue(null),
     getUserDetail: jest.fn().mockResolvedValue(null),
+    getDefinitionByHash: jest.fn().mockResolvedValue(null),
+    upsertDefinition: jest.fn().mockResolvedValue(undefined),
+    getDefinitionsByEntity: jest.fn().mockResolvedValue([]),
   };
 }
 

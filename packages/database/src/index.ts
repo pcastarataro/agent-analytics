@@ -1,4 +1,4 @@
-export { usageEvents, type UsageEventRow, type UsageEventInsert } from './schema';
+export { usageEvents, definitions, type UsageEventRow, type UsageEventInsert, type DefinitionRow, type DefinitionInsert } from './schema';
 export {
   createDrizzleRepository,
   generateContentHash,
@@ -19,6 +19,7 @@ export {
   type AgentStat,
   type SkillStat,
   type UserStat,
+  type Definition,
 } from './repository';
 
 export const DATABASE_PACKAGE_NAME = '@agent-analytics/database';

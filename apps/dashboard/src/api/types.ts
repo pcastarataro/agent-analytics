@@ -187,3 +187,12 @@ export interface UserDetail {
   eventsOverTime: Array<{ date: string; count: number }>;
   recentEvents: UsageEventDTO[];
 }
+
+export interface Definition {
+  hash: string;
+  content: string;
+  entityType: string;
+  entityName: string;
+  createdAt: string;
+  updatedAt: string;
+}

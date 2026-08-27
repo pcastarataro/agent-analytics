@@ -11,6 +11,7 @@ import { createEventRoutes } from './routes/events';
 import { createHealthRoutes } from './routes/health';
 import { createSessionRoutes } from './routes/sessions';
 import { createStatsRoutes } from './routes/stats';
+import { createDefinitionRoutes } from './routes/definitions';
 import type { ApiConfig } from './config';
 
 export function createApp(config: ApiConfig, repository: EventRepository) {
@@ -27,6 +28,7 @@ export function createApp(config: ApiConfig, repository: EventRepository) {
   app.use('/v1/events', createEventRoutes(repository));
   app.use('/v1/sessions', createSessionRoutes(repository));
   app.use('/v1/stats', createStatsRoutes(repository));
+  app.use('/v1/definitions', createDefinitionRoutes(repository));
 
   app.use(errorHandler);
 
