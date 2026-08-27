@@ -138,6 +138,10 @@ export interface UserStat {
   eventCount: number;
   distinctAgents: number;
   distinctSkills: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  totalCost: number;
   firstSeenAt: string;
   lastSeenAt: string;
 }
