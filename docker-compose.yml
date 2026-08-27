@@ -46,12 +46,13 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    working_dir: /app/packages/database
     command: >
       sh -c "
         echo 'Waiting for database...' &&
         sleep 3 &&
         echo 'Running migrations...' &&
-        npx drizzle-kit push --force packages/database/drizzle.config.ts &&
+        npx drizzle-kit push --force &&
         echo 'Migrations complete!'
       "
     environment:

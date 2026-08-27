@@ -21,4 +21,4 @@ COPY tsconfig.json tsconfig.base.json ./
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "apps/api/src/index.ts"]
+CMD ["npx", "tsx", "apps/api/src/main.ts"]
