@@ -26,6 +26,9 @@ function createMockRepository(): EventRepository {
     getUserStats: jest.fn().mockResolvedValue([]),
     findSessionList: jest.fn().mockResolvedValue({ data: [], nextCursor: null }),
     findSessionEvents: jest.fn().mockResolvedValue(null),
+    getAgentDetail: jest.fn().mockResolvedValue(null),
+    getSkillDetail: jest.fn().mockResolvedValue(null),
+    getUserDetail: jest.fn().mockResolvedValue(null),
   };
 }
 
@@ -121,8 +124,8 @@ describe('GET /v1/stats/agents', () => {
     const { default: request } = await import('supertest');
 
     const mockResult: AgentStat[] = [
-      { agentName: 'agent-a', version: '1.0.0', executionCount: 50, successRate: 80, avgDurationMs: 500, totalCost: 10.5 },
-      { agentName: 'agent-b', version: '2.0.0', executionCount: 30, successRate: 90, avgDurationMs: 300, totalCost: 5.0 },
+      { agentName: 'agent-a', version: '1.0.0', executionCount: 50, successRate: 80, avgDurationMs: 500, avgCost: 0.21, totalCost: 10.5 },
+      { agentName: 'agent-b', version: '2.0.0', executionCount: 30, successRate: 90, avgDurationMs: 300, avgCost: 0.167, totalCost: 5.0 },
     ];
 
     (repo.getAgentStats as jest.Mock).mockResolvedValueOnce(mockResult);
@@ -180,8 +183,8 @@ describe('GET /v1/stats/skills', () => {
     const { default: request } = await import('supertest');
 
     const mockResult: SkillStat[] = [
-      { skillName: 'skill-a', version: '1.0.0', executionCount: 40, successRate: 85, totalCost: 8.0 },
-      { skillName: 'skill-b', version: '1.1.0', executionCount: 20, successRate: 95, totalCost: 3.5 },
+      { skillName: 'skill-a', version: '1.0.0', executionCount: 40, successRate: 85, avgCost: 0.20, totalCost: 8.0 },
+      { skillName: 'skill-b', version: '1.1.0', executionCount: 20, successRate: 95, avgCost: 0.175, totalCost: 3.5 },
     ];
 
     (repo.getSkillStats as jest.Mock).mockResolvedValueOnce(mockResult);

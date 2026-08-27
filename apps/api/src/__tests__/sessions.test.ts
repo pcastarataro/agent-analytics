@@ -89,6 +89,9 @@ function createMockRepository(state: MockState): EventRepository {
         return { session: summary, events };
       },
     ),
+    getAgentDetail: jest.fn().mockResolvedValue(null),
+    getSkillDetail: jest.fn().mockResolvedValue(null),
+    getUserDetail: jest.fn().mockResolvedValue(null),
   };
 }
 

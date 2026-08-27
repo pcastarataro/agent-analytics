@@ -1,4 +1,5 @@
 import { useApi } from '../hooks/useApi';
+import { Link } from 'react-router-dom';
 import type { AgentStat } from '../api/types';
 import { SortableTable, Column } from '../components/SortableTable';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -15,7 +16,18 @@ interface AgentStatRow extends Record<string, unknown> {
 }
 
 const columns: Column<AgentStatRow>[] = [
-  { key: 'agentName', label: 'Agent' },
+  {
+    key: 'agentName',
+    label: 'Agent',
+    render: (row) => (
+      <Link
+        to={`/agents/${encodeURIComponent(row.agentName)}`}
+        className="text-blue-600 hover:underline"
+      >
+        {row.agentName}
+      </Link>
+    ),
+  },
   { key: 'version', label: 'Version' },
   { key: 'executionCount', label: 'Executions', sortable: true },
   {

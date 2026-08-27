@@ -132,6 +132,46 @@ export interface MetricsAggregation {
   byDate: Record<string, number>;
 }
 
+export interface AgentDetail {
+  agentName: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  tokensBySkill: Array<{ name: string; tokens: number }>;
+  recentEvents: UsageEvent[];
+}
+
+export interface SkillDetail {
+  skillName: string;
+  totalEvents: number;
+  successRate: number;
+  avgCost: number;
+  totalCost: number;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
+  recentEvents: UsageEvent[];
+}
+
+export interface UserDetail {
+  userId: string;
+  totalEvents: number;
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+  agentsUsed: Array<{ name: string; count: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  recentEvents: UsageEvent[];
+}
+
 export interface EventRepository {
   insertBatch(events: UsageEvent[]): Promise<number>;
   findById(id: string): Promise<UsageEvent | null>;
@@ -150,6 +190,9 @@ export interface EventRepository {
     agentName?: string,
   ): Promise<PaginatedResult<SessionSummary>>;
   findSessionEvents(sessionId: string): Promise<SessionDetail | null>;
+  getAgentDetail(agentName: string): Promise<AgentDetail | null>;
+  getSkillDetail(skillName: string): Promise<SkillDetail | null>;
+  getUserDetail(userId: string): Promise<UserDetail | null>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -680,6 +723,182 @@ export function createDrizzleRepository(
         firstSeenAt: row.firstSeenAt instanceof Date ? row.firstSeenAt : new Date(row.firstSeenAt),
         lastSeenAt: row.lastSeenAt instanceof Date ? row.lastSeenAt : new Date(row.lastSeenAt),
       }));
+    },
+
+    async getAgentDetail(agentName: string): Promise<AgentDetail | null> {
+      const where = eq(usageEvents.agentName, agentName);
+
+      const statsRow = await db
+        .select({
+          totalEvents: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalInputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint), 0)::bigint`,
+          totalOutputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+          totalCachedTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cachedTokens')::bigint), 0)::bigint`,
+        })
+        .from(usageEvents)
+        .where(where);
+
+      const stats = statsRow[0];
+      if (!stats || stats.totalEvents === 0) return null;
+
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const eventsOverTimeRows = await db
+        .select({ date: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const tokensBySkillRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'name', 'unknown')`,
+          tokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint + (${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
+        .orderBy(sql`sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint + (${usageEvents.metrics}::jsonb->>'outputTokens')::bigint) desc`);
+
+      const recentRows = await db
+        .select()
+        .from(usageEvents)
+        .where(where)
+        .orderBy(usageEvents.timestamp)
+        .limit(20);
+
+      return {
+        agentName,
+        totalEvents: stats.totalEvents,
+        successRate: Number(stats.successRate),
+        avgDurationMs: Number(stats.avgDurationMs),
+        totalCost: Number(stats.totalCost),
+        avgCost: Number(stats.avgCost),
+        totalInputTokens: Number(stats.totalInputTokens),
+        totalOutputTokens: Number(stats.totalOutputTokens),
+        totalCachedTokens: Number(stats.totalCachedTokens),
+        eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        tokensBySkill: tokensBySkillRows.map((r) => ({ name: r.name, tokens: Number(r.tokens) })),
+        recentEvents: recentRows.map(toEvent),
+      };
+    },
+
+    async getSkillDetail(skillName: string): Promise<SkillDetail | null> {
+      const where = sql`(${usageEvents.skill}::jsonb->>'name') = ${skillName}`;
+
+      const statsRow = await db
+        .select({
+          totalEvents: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where);
+
+      const stats = statsRow[0];
+      if (!stats || stats.totalEvents === 0) return null;
+
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const eventsOverTimeRows = await db
+        .select({ date: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const costByDateRows = await db
+        .select({
+          date: dateColumn,
+          cost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const recentRows = await db
+        .select()
+        .from(usageEvents)
+        .where(where)
+        .orderBy(usageEvents.timestamp)
+        .limit(20);
+
+      return {
+        skillName,
+        totalEvents: stats.totalEvents,
+        successRate: Number(stats.successRate),
+        avgCost: Number(stats.avgCost),
+        totalCost: Number(stats.totalCost),
+        eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
+        recentEvents: recentRows.map(toEvent),
+      };
+    },
+
+    async getUserDetail(userId: string): Promise<UserDetail | null> {
+      const where = sql`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown') = ${userId}`;
+
+      const statsRow = await db
+        .select({
+          totalEvents: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalInputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint), 0)::bigint`,
+          totalOutputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+          totalCachedTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cachedTokens')::bigint), 0)::bigint`,
+          firstSeenAt: sql<Date>`min(${usageEvents.timestamp})`,
+          lastSeenAt: sql<Date>`max(${usageEvents.timestamp})`,
+        })
+        .from(usageEvents)
+        .where(where);
+
+      const stats = statsRow[0];
+      if (!stats || stats.totalEvents === 0) return null;
+
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const eventsOverTimeRows = await db
+        .select({ date: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const agentsUsedRows = await db
+        .select({
+          name: sql<string>`${usageEvents.agentName}`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.agentName)
+        .orderBy(sql`count(*) desc`);
+
+      const recentRows = await db
+        .select()
+        .from(usageEvents)
+        .where(where)
+        .orderBy(usageEvents.timestamp)
+        .limit(20);
+
+      return {
+        userId,
+        totalEvents: stats.totalEvents,
+        totalCost: Number(stats.totalCost),
+        totalInputTokens: Number(stats.totalInputTokens),
+        totalOutputTokens: Number(stats.totalOutputTokens),
+        totalCachedTokens: Number(stats.totalCachedTokens),
+        firstSeenAt: stats.firstSeenAt instanceof Date ? stats.firstSeenAt : new Date(stats.firstSeenAt),
+        lastSeenAt: stats.lastSeenAt instanceof Date ? stats.lastSeenAt : new Date(stats.lastSeenAt),
+        agentsUsed: agentsUsedRows.map((r) => ({ name: r.name ?? 'unknown', count: r.count })),
+        eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        recentEvents: recentRows.map(toEvent),
+      };
     },
   };
 }

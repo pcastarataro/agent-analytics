@@ -147,3 +147,43 @@ export interface UserStat {
   firstSeenAt: string;
   lastSeenAt: string;
 }
+
+export interface AgentDetail {
+  agentName: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  tokensBySkill: Array<{ name: string; tokens: number }>;
+  recentEvents: UsageEventDTO[];
+}
+
+export interface SkillDetail {
+  skillName: string;
+  totalEvents: number;
+  successRate: number;
+  avgCost: number;
+  totalCost: number;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
+  recentEvents: UsageEventDTO[];
+}
+
+export interface UserDetail {
+  userId: string;
+  totalEvents: number;
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  agentsUsed: Array<{ name: string; count: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  recentEvents: UsageEventDTO[];
+}

@@ -27,6 +27,9 @@ function createMockRepository(): EventRepository {
     getUserStats: jest.fn().mockResolvedValue([]),
     findSessionList: jest.fn().mockResolvedValue({ data: [], nextCursor: null }),
     findSessionEvents: jest.fn().mockResolvedValue(null),
+    getAgentDetail: jest.fn().mockResolvedValue(null),
+    getSkillDetail: jest.fn().mockResolvedValue(null),
+    getUserDetail: jest.fn().mockResolvedValue(null),
   };
 }
 
