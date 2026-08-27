@@ -52,7 +52,7 @@ function toRow(event: UsageEvent): UsageEventInsert {
     result: event.result as Record<string, unknown>,
     agentName: event.agent.name,
     sessionId: event.execution.traceId,
-    timestamp: new Date(),
+    timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
     status: event.result.status,
   };
 }
@@ -70,6 +70,7 @@ function toEvent(row: Record<string, unknown>): UsageEvent {
     model: row.model as UsageEvent['model'],
     metrics: row.metrics as UsageEvent['metrics'],
     result: row.result as UsageEvent['result'],
+    timestamp: row.timestamp instanceof Date ? row.timestamp.toISOString() : (row.timestamp as string | undefined),
   };
 }
 

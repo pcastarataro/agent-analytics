@@ -208,6 +208,7 @@ describe('EventRepository', () => {
           cost: 0.15,
         },
         result: { status: 'success' },
+        timestamp: '2026-01-15T10:30:00.000Z',
       });
 
       await repo.insertBatch([maximal]);
@@ -232,6 +233,7 @@ describe('EventRepository', () => {
         model: {},
         metrics: {},
         result: { status: 'error' },
+        timestamp: '2026-01-15T10:30:00.000Z',
       });
 
       await repo.insertBatch([minimal]);
