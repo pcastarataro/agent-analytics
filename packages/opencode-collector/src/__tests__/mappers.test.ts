@@ -121,8 +121,9 @@ describe('Message Mapper', () => {
         createTestConfig(),
         (result: Record<string, unknown>) => {
           expect(result).not.toHaveProperty('prompt');
-          expect(result).toHaveProperty('promptLength');
-          expect(result).toHaveProperty('promptHash');
+          const metrics = result.metrics as Record<string, unknown>;
+          expect(metrics).toHaveProperty('promptLength');
+          expect(metrics).toHaveProperty('promptHash');
         },
       ],
       [
@@ -132,7 +133,8 @@ describe('Message Mapper', () => {
         (result: Record<string, unknown>) => {
           const encoder = new TextEncoder();
           const expectedBytes = encoder.encode(FIXTURES.userMessage.message.text).length;
-          expect(result.promptLength).toBe(expectedBytes);
+          const metrics = result.metrics as Record<string, unknown>;
+          expect(metrics.promptLength).toBe(expectedBytes);
         },
       ],
       [
@@ -140,18 +142,9 @@ describe('Message Mapper', () => {
         FIXTURES.userMessage,
         createTestConfig(),
         (result: Record<string, unknown>) => {
-          expect(typeof result.promptHash).toBe('string');
-          expect((result.promptHash as string).length).toBe(64);
-        },
-      ],
-      [
-        'opt-in captures raw prompt',
-        FIXTURES.userMessage,
-        createTestConfig({
-          capture: { prompts: true, responses: false, toolArguments: false },
-        }),
-        (result: Record<string, unknown>) => {
-          expect(result.prompt).toBe(FIXTURES.userMessage.message.text);
+          const metrics = result.metrics as Record<string, unknown>;
+          expect(typeof metrics.promptHash).toBe('string');
+          expect((metrics.promptHash as string).length).toBe(64);
         },
       ],
       [

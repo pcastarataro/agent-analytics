@@ -39,6 +39,8 @@ export const metricsSchema = z.looseObject({
   outputTokens: z.number().optional(),
   cachedTokens: z.number().optional(),
   cost: z.number().optional(),
+  promptLength: z.number().optional(),
+  promptHash: z.string().optional(),
 });
 
 export const resultSchema = z.looseObject({

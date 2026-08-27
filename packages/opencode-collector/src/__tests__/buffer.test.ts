@@ -174,7 +174,7 @@ describe('HttpClient', () => {
     });
 
     const body = JSON.parse(capturedRequest!.init.body as string);
-    expect(body.events).toHaveLength(2);
+    expect(body).toHaveLength(2);
 
     expect(counters.dropped).toBe(0);
     expect(counters.retried).toBe(0);

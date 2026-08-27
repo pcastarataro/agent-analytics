@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomFillSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { usageEventSchema, type UsageEvent } from '@agent-analytics/event-schema';
@@ -60,7 +60,19 @@ function resolveConfig(directory: string): CollectorConfig {
 }
 
 function generateId(): string {
-  return randomUUID();
+  const ms = Date.now();
+  const buf = Buffer.alloc(16);
+  // 48-bit timestamp
+  buf.writeUInt32BE(Math.floor(ms / 0x10000), 0);
+  buf.writeUInt16BE(ms & 0xffff, 4);
+  // version 7
+  buf.writeUInt8((buf.readUInt8(6) & 0x0f) | 0x70, 6);
+  // variant 10xx
+  buf.writeUInt8((buf.readUInt8(8) & 0x3f) | 0x80, 8);
+  // random bytes for remaining bits
+  randomFillSync(buf, 9);
+  const hex = buf.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 export const createPlugin = async ({
@@ -198,15 +210,13 @@ export const createPlugin = async ({
 
   function handleToolBefore(input: unknown): void {
     const payload = input as {
-      input: { callID: string; tool: string; args?: Record<string, unknown> };
+      input: { callID: string; tool: string; args?: Record<string, unknown>; sessionID?: string };
     };
     const fields = mapToolBefore(payload, toolCalls);
-    const tc = toolCalls.get(payload.input.callID);
-    const sessionId = tc
-      ? executions.size > 0
-        ? [...executions.keys()]![0]
-        : undefined
-      : undefined;
+
+    // Prefer sessionID from the hook payload; fall back to first active execution
+    const sessionId = payload.input.sessionID
+      ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     enqueueEvent({
@@ -217,16 +227,16 @@ export const createPlugin = async ({
   }
 
   function handleToolAfter(input: unknown): void {
-    const payload = input as { input: { callID: string }; result?: { error?: boolean } };
+    const payload = input as {
+      input: { callID: string; sessionID?: string };
+      result?: { error?: boolean };
+    };
     const fields = mapToolAfter(payload, toolCalls);
     if (Object.keys(fields).length === 0) return;
 
-    const tc = toolCalls.get(payload.input.callID);
-    const sessionId = tc
-      ? executions.size > 0
-        ? [...executions.keys()]![0]
-        : undefined
-      : undefined;
+    // Prefer sessionID from the hook payload; fall back to first active execution
+    const sessionId = payload.input.sessionID
+      ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     enqueueEvent({

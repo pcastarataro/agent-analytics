@@ -6,18 +6,14 @@ import { extractTokenMetrics, resolveStatus } from '@agent-analytics/event-schem
 
 function computePromptPrivacy(
   text: string,
-  capturePrompts: boolean,
 ): {
-  prompt?: string;
   promptLength: number;
   promptHash: string;
 } {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(text);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  return capturePrompts
-    ? { prompt: text, promptLength: bytes.length, promptHash: hash }
-    : { promptLength: bytes.length, promptHash: hash };
+  return { promptLength: bytes.length, promptHash: hash };
 }
 
 export function mapUserMessage(
@@ -28,7 +24,7 @@ export function mapUserMessage(
   context: ExecutionContext,
   config: CollectorConfig,
 ): Record<string, unknown> {
-  const privacy = computePromptPrivacy(payload.message.text, config.capture.prompts);
+  const privacy = computePromptPrivacy(payload.message.text);
 
   if (payload.agent && !context.agentName) {
     context.agentName = payload.agent;
@@ -39,30 +35,58 @@ export function mapUserMessage(
     metrics: {
       inputTokens: 0,
       outputTokens: 0,
+      promptLength: privacy.promptLength,
+      promptHash: privacy.promptHash,
     },
     result: { status: 'success' as EventStatus },
-    ...privacy,
   };
 }
 
+/**
+ * Maps an assistant message from the OpenCode SDK's AssistantMessage shape.
+ *
+ * SDK shape:
+ *   { providerID, modelID, tokens: { input, output, reasoning, cache: { read, write } },
+ *     cost, time: { created, completed? }, error? }
+ */
 export function mapAssistantMessage(payload: {
   message: {
     providerID?: string;
     modelID?: string;
-    tokens?: { input?: number; output?: number; cached?: number };
+    tokens?: {
+      input?: number;
+      output?: number;
+      reasoning?: number;
+      cache?: { read?: number; write?: number };
+    };
+    cost?: number;
     error?: { name?: string } | null;
+    time?: { created?: number; completed?: number };
+    // Legacy fields (pre-SDK) — tolerated for backwards compat
     startTime?: number;
     endTime?: number;
+    cached?: number;
   };
 }): Record<string, unknown> {
   const msg = payload.message;
-  const tokenMetrics = extractTokenMetrics(msg.tokens);
+
+  // Map SDK token shape { cache.read } → canonical { cached }
+  // Also tolerates legacy shape { cached } directly on tokens
+  const tokenShape = msg.tokens
+    ? {
+        input: msg.tokens.input,
+        output: msg.tokens.output,
+        cached: msg.tokens.cache?.read ?? (msg.tokens as Record<string, unknown>).cached as number | undefined,
+      }
+    : undefined;
+  const tokenMetrics = extractTokenMetrics(tokenShape);
   const status: EventStatus = resolveStatus(msg.error);
 
+  // Prefer SDK time shape { created, completed }; fall back to legacy startTime/endTime
+  const startTime = msg.time?.created ?? msg.startTime;
+  const endTime = msg.time?.completed ?? msg.endTime;
   const durationMs =
-    msg.startTime !== undefined && msg.endTime !== undefined
-      ? msg.endTime - msg.startTime
-      : undefined;
+    startTime !== undefined && endTime !== undefined ? endTime - startTime : undefined;
 
   return {
     model: {
@@ -72,6 +96,7 @@ export function mapAssistantMessage(payload: {
     metrics: {
       ...tokenMetrics,
       ...(durationMs !== undefined && { durationMs }),
+      ...(msg.cost !== undefined && { cost: msg.cost }),
     },
     result: { status },
   };

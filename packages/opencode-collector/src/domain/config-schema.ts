@@ -6,18 +6,13 @@ const captureSchema = z.object({
   toolArguments: z.boolean().default(false),
 });
 
-export const collectorConfigSchema = z
-  .object({
-    url: z.string().url().optional(),
-    apiKey: z.string().optional(),
-    userId: z.string().optional(),
-    capture: captureSchema,
-    disabled: z.boolean().default(false),
-  })
-  .default(() => ({
-    capture: { prompts: false, responses: false, toolArguments: false },
-    disabled: false,
-  }));
+export const collectorConfigSchema = z.object({
+  url: z.string().url().optional(),
+  apiKey: z.string().optional(),
+  userId: z.string().optional(),
+  capture: captureSchema.default({ prompts: false, responses: false, toolArguments: false }),
+  disabled: z.boolean().default(false),
+});
 
 export type CollectorConfig = z.infer<typeof collectorConfigSchema>;
 

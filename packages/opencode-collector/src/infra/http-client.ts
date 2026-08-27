@@ -24,7 +24,7 @@ export function createHttpClient(
   const { fetchFn, sleepFn } = deps;
 
   async function postBatch(events: UsageEvent[]): Promise<void> {
-    const body = JSON.stringify({ events });
+    const body = JSON.stringify(events);
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       const controller = new AbortController();
