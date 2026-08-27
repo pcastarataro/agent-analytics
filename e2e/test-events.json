@@ -1,0 +1,41 @@
+[
+  {
+    "id": "0192e1c1-0001-7000-8000-000000000001",
+    "actor": { "userId": "user-001" },
+    "project": { "name": "test-project" },
+    "session": { "id": "sess-001" },
+    "execution": { "traceId": "trace-001" },
+    "agent": { "name": "main" },
+    "skill": { "name": "general" },
+    "tool": { "name": "bash" },
+    "model": { "name": "gpt-4o" },
+    "metrics": { "durationMs": 1200, "inputTokens": 500, "outputTokens": 300 },
+    "result": { "status": "success" }
+  },
+  {
+    "id": "0192e1c1-0002-7000-8000-000000000002",
+    "actor": { "userId": "user-001" },
+    "project": { "name": "test-project" },
+    "session": { "id": "sess-001" },
+    "execution": { "traceId": "trace-002", "parentId": "trace-001" },
+    "agent": { "name": "main" },
+    "skill": { "name": "general" },
+    "tool": { "name": "read" },
+    "model": { "name": "gpt-4o" },
+    "metrics": { "durationMs": 800, "inputTokens": 1200, "outputTokens": 600, "cachedTokens": 400 },
+    "result": { "status": "success" }
+  },
+  {
+    "id": "0192e1c1-0003-7000-8000-000000000003",
+    "actor": { "userId": "user-002" },
+    "project": { "name": "test-project" },
+    "session": { "id": "sess-002" },
+    "execution": { "traceId": "trace-003" },
+    "agent": { "name": "subagent" },
+    "skill": { "name": "code-review" },
+    "tool": { "name": "grep" },
+    "model": { "name": "claude-sonnet-4-20250514" },
+    "metrics": { "durationMs": 2500, "inputTokens": 800, "outputTokens": 200 },
+    "result": { "status": "success" }
+  }
+]
