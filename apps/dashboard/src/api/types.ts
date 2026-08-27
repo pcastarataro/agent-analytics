@@ -23,6 +23,7 @@ export interface UsageEventDTO {
     cost?: number;
   };
   result: { status: 'success' | 'error' | 'cancelled' };
+  timestamp?: string;
 }
 
 export interface PaginatedEvents {
