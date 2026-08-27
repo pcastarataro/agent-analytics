@@ -90,6 +90,32 @@ export interface SessionDetail {
   events: UsageEvent[];
 }
 
+export interface AgentStat {
+  agentName: string;
+  version: string;
+  executionCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+}
+
+export interface SkillStat {
+  skillName: string;
+  version: string;
+  executionCount: number;
+  successRate: number;
+  totalCost: number;
+}
+
+export interface UserStat {
+  userId: string;
+  eventCount: number;
+  distinctAgents: number;
+  distinctSkills: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+}
+
 export interface MetricsAggregation {
   usage: UsageMetrics;
   performance: PerformanceMetrics;
@@ -110,6 +136,9 @@ export interface EventRepository {
   ): Promise<Record<string, number>>;
   countByDate(filters?: DateFilters): Promise<Record<string, number>>;
   getMetricsAggregation(filters?: DateFilters): Promise<MetricsAggregation>;
+  getAgentStats(filters?: DateFilters): Promise<AgentStat[]>;
+  getSkillStats(filters?: DateFilters): Promise<SkillStat[]>;
+  getUserStats(filters?: DateFilters): Promise<UserStat[]>;
   findSessionList(
     pagination: Pagination,
     agentName?: string,
@@ -530,6 +559,106 @@ export function createDrizzleRepository(
         },
         events: eventRows.map(toEvent),
       };
+    },
+
+    async getAgentStats(filters?: DateFilters): Promise<AgentStat[]> {
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          agentName: usageEvents.agentName,
+          version: sql<string>`coalesce(${usageEvents.agent}::jsonb->>'version', 'unknown')`,
+          executionCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(usageEvents.agentName, sql`${usageEvents.agent}::jsonb->>'version'`)
+        .orderBy(sql`count(*) desc`);
+
+      return rows.map((row) => ({
+        agentName: row.agentName ?? 'unknown',
+        version: row.version,
+        executionCount: row.executionCount,
+        successRate: Number(row.successRate),
+        avgDurationMs: Number(row.avgDurationMs),
+        totalCost: Number(row.totalCost),
+      }));
+    },
+
+    async getSkillStats(filters?: DateFilters): Promise<SkillStat[]> {
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          skillName: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'name', 'unknown')`,
+          version: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'version', 'unknown')`,
+          executionCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`, sql`${usageEvents.skill}::jsonb->>'version'`)
+        .orderBy(sql`count(*) desc`);
+
+      return rows.map((row) => ({
+        skillName: row.skillName,
+        version: row.version,
+        executionCount: row.executionCount,
+        successRate: Number(row.successRate),
+        totalCost: Number(row.totalCost),
+      }));
+    },
+
+    async getUserStats(filters?: DateFilters): Promise<UserStat[]> {
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          userId: sql<string>`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
+          distinctSkills: sql<number>`count(distinct (${usageEvents.skill}::jsonb->>'name'))::int`,
+          firstSeenAt: sql<Date>`min(${usageEvents.timestamp})`,
+          lastSeenAt: sql<Date>`max(${usageEvents.timestamp})`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(sql`${usageEvents.actor}::jsonb->>'userId'`)
+        .orderBy(sql`count(*) desc`);
+
+      return rows.map((row) => ({
+        userId: row.userId,
+        eventCount: row.eventCount,
+        distinctAgents: row.distinctAgents,
+        distinctSkills: row.distinctSkills,
+        firstSeenAt: row.firstSeenAt instanceof Date ? row.firstSeenAt : new Date(row.firstSeenAt),
+        lastSeenAt: row.lastSeenAt instanceof Date ? row.lastSeenAt : new Date(row.lastSeenAt),
+      }));
     },
   };
 }

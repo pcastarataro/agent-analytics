@@ -16,6 +16,9 @@ export {
   type MetricsAggregation,
   type SessionSummary,
   type SessionDetail,
+  type AgentStat,
+  type SkillStat,
+  type UserStat,
 } from './repository';
 
 export const DATABASE_PACKAGE_NAME = '@agent-analytics/database';

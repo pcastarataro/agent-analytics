@@ -305,4 +305,202 @@ describe('EventRepository', () => {
       expect(reparsed).toEqual(minimal);
     });
   });
+
+  describe('getAgentStats', () => {
+    it('groups by agent name and version with correct metrics', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'agent-a', version: '1.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 1000, cost: 0.1 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'agent-a', version: '1.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 2000, cost: 0.2 },
+          result: { status: 'error' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000003',
+          agent: { name: 'agent-a', version: '2.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 1500, cost: 0.15 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000004',
+          agent: { name: 'agent-b', version: '1.0.0' } as UsageEvent['agent'],
+          metrics: { durationMs: 500, cost: 0.05 },
+          result: { status: 'success' },
+        }),
+      ]);
+
+      const stats = await repo.getAgentStats();
+
+      expect(stats).toHaveLength(3);
+
+      const agentAV1 = stats.find((s) => s.agentName === 'agent-a' && s.version === '1.0.0');
+      expect(agentAV1).toBeDefined();
+      expect(agentAV1!.executionCount).toBe(2);
+      expect(agentAV1!.successRate).toBe(50);
+      expect(agentAV1!.avgDurationMs).toBe(1500);
+      expect(agentAV1!.totalCost).toBeCloseTo(0.3);
+
+      const agentAV2 = stats.find((s) => s.agentName === 'agent-a' && s.version === '2.0.0');
+      expect(agentAV2).toBeDefined();
+      expect(agentAV2!.executionCount).toBe(1);
+      expect(agentAV2!.successRate).toBe(100);
+
+      const agentB = stats.find((s) => s.agentName === 'agent-b');
+      expect(agentB).toBeDefined();
+      expect(agentB!.executionCount).toBe(1);
+    });
+
+    it('filters by date range', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+          timestamp: '2026-01-01T00:00:00.000Z',
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+          timestamp: '2026-06-01T00:00:00.000Z',
+        }),
+      ]);
+
+      const stats = await repo.getAgentStats({
+        from: new Date('2026-03-01T00:00:00Z'),
+      });
+
+      expect(stats).toHaveLength(1);
+      expect(stats[0]!.executionCount).toBe(1);
+    });
+
+    it('returns empty array when no events', async () => {
+      const stats = await repo.getAgentStats();
+      expect(stats).toEqual([]);
+    });
+  });
+
+  describe('getSkillStats', () => {
+    it('groups by skill name and version with correct metrics', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          skill: { name: 'skill-a', version: '1.0.0' } as UsageEvent['skill'],
+          metrics: { cost: 0.1 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          skill: { name: 'skill-a', version: '1.0.0' } as UsageEvent['skill'],
+          metrics: { cost: 0.2 },
+          result: { status: 'success' },
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000003',
+          skill: { name: 'skill-b', version: '2.0.0' } as UsageEvent['skill'],
+          metrics: { cost: 0.05 },
+          result: { status: 'error' },
+        }),
+      ]);
+
+      const stats = await repo.getSkillStats();
+
+      expect(stats).toHaveLength(2);
+
+      const skillA = stats.find((s) => s.skillName === 'skill-a');
+      expect(skillA).toBeDefined();
+      expect(skillA!.executionCount).toBe(2);
+      expect(skillA!.successRate).toBe(100);
+      expect(skillA!.totalCost).toBeCloseTo(0.3);
+
+      const skillB = stats.find((s) => s.skillName === 'skill-b');
+      expect(skillB).toBeDefined();
+      expect(skillB!.executionCount).toBe(1);
+      expect(skillB!.successRate).toBe(0);
+    });
+
+    it('returns empty array when no events', async () => {
+      const stats = await repo.getSkillStats();
+      expect(stats).toEqual([]);
+    });
+  });
+
+  describe('getUserStats', () => {
+    it('groups by userId with correct metrics', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          actor: { userId: 'user-1' },
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+          skill: { name: 'skill-a' } as UsageEvent['skill'],
+          timestamp: '2026-01-01T00:00:00.000Z',
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          actor: { userId: 'user-1' },
+          agent: { name: 'agent-b' } as UsageEvent['agent'],
+          skill: { name: 'skill-b' } as UsageEvent['skill'],
+          timestamp: '2026-01-02T00:00:00.000Z',
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000003',
+          actor: { userId: 'user-2' },
+          agent: { name: 'agent-a' } as UsageEvent['agent'],
+          skill: { name: 'skill-a' } as UsageEvent['skill'],
+          timestamp: '2026-01-03T00:00:00.000Z',
+        }),
+      ]);
+
+      const stats = await repo.getUserStats();
+
+      expect(stats).toHaveLength(2);
+
+      const user1 = stats.find((s) => s.userId === 'user-1');
+      expect(user1).toBeDefined();
+      expect(user1!.eventCount).toBe(2);
+      expect(user1!.distinctAgents).toBe(2);
+      expect(user1!.distinctSkills).toBe(2);
+      expect(user1!.firstSeenAt.getTime()).toBe(new Date('2026-01-01T00:00:00.000Z').getTime());
+      expect(user1!.lastSeenAt.getTime()).toBe(new Date('2026-01-02T00:00:00.000Z').getTime());
+
+      const user2 = stats.find((s) => s.userId === 'user-2');
+      expect(user2).toBeDefined();
+      expect(user2!.eventCount).toBe(1);
+      expect(user2!.distinctAgents).toBe(1);
+    });
+
+    it('handles events with empty userId as "unknown"', async () => {
+      await repo.insertBatch([
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000001',
+          actor: { userId: '' } as UsageEvent['actor'],
+        }),
+        makeEvent({
+          id: '0192e000-1000-7000-8000-000000000002',
+          actor: { userId: 'user-1' },
+        }),
+      ]);
+
+      const stats = await repo.getUserStats();
+
+      expect(stats).toHaveLength(2);
+
+      const unknownUser = stats.find((s) => s.userId === 'unknown');
+      expect(unknownUser).toBeDefined();
+      expect(unknownUser!.eventCount).toBe(1);
+
+      const knownUser = stats.find((s) => s.userId === 'user-1');
+      expect(knownUser).toBeDefined();
+      expect(knownUser!.eventCount).toBe(1);
+    });
+
+    it('returns empty array when no events', async () => {
+      const stats = await repo.getUserStats();
+      expect(stats).toEqual([]);
+    });
+  });
 });

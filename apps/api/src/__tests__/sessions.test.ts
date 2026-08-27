@@ -60,6 +60,9 @@ function createMockRepository(state: MockState): EventRepository {
       byStatus: {},
       byDate: {},
     }),
+    getAgentStats: jest.fn().mockResolvedValue([]),
+    getSkillStats: jest.fn().mockResolvedValue([]),
+    getUserStats: jest.fn().mockResolvedValue([]),
     findSessionList: jest.fn().mockImplementation(
       async (
         pagination: { limit: number; cursor?: string },
