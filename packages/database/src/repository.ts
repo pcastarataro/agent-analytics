@@ -1,4 +1,5 @@
 import { eq, and, gte, lte, sql, type SQL, isNull, isNotNull } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { UsageEvent } from '@agent-analytics/event-schema';
@@ -116,6 +117,20 @@ export interface EventRepository {
   findSessionEvents(sessionId: string): Promise<SessionDetail | null>;
 }
 
+function generateContentHash(event: UsageEvent): string {
+  const dedupFields = JSON.stringify({
+    traceId: event.execution.traceId,
+    parentId: event.execution.parentId,
+    eventType: (event.execution as Record<string, unknown>).eventType,
+    agentName: event.agent.name,
+    toolName: event.tool?.name,
+    skillName: event.skill?.name,
+    status: event.result.status,
+    timestamp: event.timestamp,
+  });
+  return createHash('sha256').update(dedupFields).digest('hex').slice(0, 32);
+}
+
 function toRow(event: UsageEvent): UsageEventInsert {
   return {
     id: event.id,
@@ -134,6 +149,7 @@ function toRow(event: UsageEvent): UsageEventInsert {
     eventType: (event.execution as Record<string, unknown>).eventType as string | undefined,
     timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
     status: event.result.status,
+    contentHash: generateContentHash(event),
   };
 }
 
@@ -184,7 +200,7 @@ export function createDrizzleRepository(
     async insertBatch(events: UsageEvent[]): Promise<number> {
       if (events.length === 0) return 0;
       const rows = events.map(toRow);
-      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.id });
+      await db.insert(usageEvents).values(rows).onConflictDoNothing({ target: usageEvents.contentHash });
       return rows.length;
     },
 

@@ -19,6 +19,15 @@
         "id": "0001_add_event_type",
         "createdAt": "2026-08-27T00:00:00.000Z"
       }
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "dialect": "postgresql",
+      "entry": {
+        "id": "0002_add_content_hash_dedup",
+        "createdAt": "2026-08-27T00:00:00.000Z"
+      }
     }
   ]
 }

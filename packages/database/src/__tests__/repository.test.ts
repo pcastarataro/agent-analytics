@@ -20,7 +20,8 @@ beforeAll(async () => {
   db = drizzle(client) as ReturnType<typeof drizzle<Record<string, never>>>;
   repo = createDrizzleRepository(db);
 
-  await db.execute(sql`CREATE TABLE IF NOT EXISTS "usage_events" (
+  await db.execute(sql`DROP TABLE IF EXISTS "usage_events"`);
+  await db.execute(sql`CREATE TABLE "usage_events" (
     "id" uuid PRIMARY KEY NOT NULL,
     "actor" jsonb,
     "project" jsonb,
@@ -34,17 +35,16 @@ beforeAll(async () => {
     "result" jsonb,
     "agent_name" text,
     "session_id" text,
+    "event_type" text,
     "timestamp" timestamp with time zone,
-    "status" text
+    "status" text,
+    "content_hash" text
   )`);
-  await db.execute(
-    sql`CREATE INDEX IF NOT EXISTS "idx_agent_name" ON "usage_events" ("agent_name")`,
-  );
-  await db.execute(
-    sql`CREATE INDEX IF NOT EXISTS "idx_session_id" ON "usage_events" ("session_id")`,
-  );
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_timestamp" ON "usage_events" ("timestamp")`);
-  await db.execute(sql`CREATE INDEX IF NOT EXISTS "idx_status" ON "usage_events" ("status")`);
+  await db.execute(sql`CREATE INDEX "idx_agent_name" ON "usage_events" ("agent_name")`);
+  await db.execute(sql`CREATE INDEX "idx_session_id" ON "usage_events" ("session_id")`);
+  await db.execute(sql`CREATE INDEX "idx_timestamp" ON "usage_events" ("timestamp")`);
+  await db.execute(sql`CREATE INDEX "idx_status" ON "usage_events" ("status")`);
+  await db.execute(sql`CREATE UNIQUE INDEX "idx_content_hash_unique" ON "usage_events" ("content_hash")`);
 });
 
 afterAll(async () => {
@@ -96,6 +96,28 @@ describe('EventRepository', () => {
       const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
       expect(result[0]!.count).toBe(1);
     });
+
+    it('deduplicates events with different IDs but same content', async () => {
+      const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001' });
+      const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000002' });
+
+      await repo.insertBatch([event1]);
+      await repo.insertBatch([event2]);
+
+      const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
+      expect(result[0]!.count).toBe(1);
+    });
+
+    it('allows events with different content', async () => {
+      const event1 = makeEvent({ id: '0192e000-1000-7000-8000-000000000001', result: { status: 'success' } });
+      const event2 = makeEvent({ id: '0192e000-1000-7000-8000-000000000002', result: { status: 'error' } });
+
+      await repo.insertBatch([event1]);
+      await repo.insertBatch([event2]);
+
+      const result = await db.select({ count: sql<number>`count(*)::int` }).from(usageEvents);
+      expect(result[0]!.count).toBe(2);
+    });
   });
 
   describe('findById', () => {
@@ -118,6 +140,7 @@ describe('EventRepository', () => {
       const events = Array.from({ length: 15 }, (_, i) =>
         makeEvent({
           id: `0192e000-1000-7000-8000-${String(i).padStart(12, '0')}`,
+          timestamp: new Date(Date.now() + i).toISOString(),
         }),
       );
       await repo.insertBatch(events);
@@ -166,14 +189,17 @@ describe('EventRepository', () => {
         makeEvent({
           id: '0192e000-1000-7000-8000-000000000001',
           agent: { name: 'agent-a' } as UsageEvent['agent'],
+          timestamp: '2026-01-01T00:00:00.000Z',
         }),
         makeEvent({
           id: '0192e000-1000-7000-8000-000000000002',
           agent: { name: 'agent-a' } as UsageEvent['agent'],
+          timestamp: '2026-01-01T00:00:01.000Z',
         }),
         makeEvent({
           id: '0192e000-1000-7000-8000-000000000003',
           agent: { name: 'agent-b' } as UsageEvent['agent'],
+          timestamp: '2026-01-01T00:00:02.000Z',
         }),
       ]);
 

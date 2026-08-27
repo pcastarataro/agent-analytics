@@ -19,6 +19,7 @@ export const usageEvents = pgTable(
     eventType: text('event_type'),
     timestamp: timestamp('timestamp', { withTimezone: true }),
     status: text('status'),
+    contentHash: text('content_hash'),
   },
   (table) => [
     index('idx_agent_name').on(table.agentName),
@@ -26,6 +27,7 @@ export const usageEvents = pgTable(
     index('idx_event_type').on(table.eventType),
     index('idx_timestamp').on(table.timestamp),
     index('idx_status').on(table.status),
+    index('idx_content_hash').on(table.contentHash),
   ],
 );
 
