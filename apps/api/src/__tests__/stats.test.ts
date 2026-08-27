@@ -239,8 +239,8 @@ describe('GET /v1/stats/users', () => {
     const { default: request } = await import('supertest');
 
     const mockResult: UserStat[] = [
-      { userId: 'user-1', eventCount: 100, distinctAgents: 3, distinctSkills: 5, firstSeenAt: new Date('2026-01-01'), lastSeenAt: new Date('2026-01-15') },
-      { userId: 'user-2', eventCount: 50, distinctAgents: 2, distinctSkills: 3, firstSeenAt: new Date('2026-01-05'), lastSeenAt: new Date('2026-01-20') },
+      { userId: 'user-1', eventCount: 100, distinctAgents: 3, distinctSkills: 5, totalInputTokens: 10000, totalOutputTokens: 5000, totalCachedTokens: 2000, totalCost: 0.45, firstSeenAt: new Date('2026-01-01'), lastSeenAt: new Date('2026-01-15') },
+      { userId: 'user-2', eventCount: 50, distinctAgents: 2, distinctSkills: 3, totalInputTokens: 3000, totalOutputTokens: 1500, totalCachedTokens: 800, totalCost: 0.12, firstSeenAt: new Date('2026-01-05'), lastSeenAt: new Date('2026-01-20') },
     ];
 
     (repo.getUserStats as jest.Mock).mockResolvedValueOnce(mockResult);
