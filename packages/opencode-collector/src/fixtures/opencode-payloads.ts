@@ -75,6 +75,14 @@ export const FIXTURES = {
     input: { callID: CALL_ID_2, tool: 'skill', args: { name: 'sdd-apply' } },
   },
 
+  skillToolExecuteBeforeWithVersion: {
+    input: {
+      callID: 'call-003',
+      tool: 'skill',
+      args: { name: 'research', version: '0.3.1', definitionHash: 'd4e5f6' },
+    },
+  },
+
   toolExecuteAfterSuccess: {
     input: { callID: CALL_ID_1 },
     result: { error: false },

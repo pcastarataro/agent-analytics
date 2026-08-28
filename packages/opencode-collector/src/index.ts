@@ -1,5 +1,5 @@
 import { randomFillSync } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { usageEventSchema, type UsageEvent } from '@agent-analytics/event-schema';
 import {
@@ -17,9 +17,11 @@ import {
   mapAssistantMessage,
   mapToolBefore,
   mapToolAfter,
+  mapSkillComplete,
 } from './mappers';
 import { createEventBuffer, type EventBufferDeps } from './infra/event-buffer';
 import { createHttpClient, type HttpClientCounters } from './infra/http-client';
+import { createDefinitionUploader, type DefinitionUploader } from './infra/definition-uploader';
 import { withBoundary } from './infra/boundary';
 
 export const OPENCODE_COLLECTOR_PACKAGE_NAME = '@agent-analytics/opencode-collector';
@@ -123,6 +125,17 @@ export const createPlugin = async ({
     counters,
   );
 
+  const uploader: DefinitionUploader = createDefinitionUploader({
+    readFile: (path) => readFileSync(path, 'utf-8'),
+    readdir: (path) => {
+      return readdirSync(path, { withFileTypes: true })
+        .filter((d) => d.isFile())
+        .map((d) => d.name);
+    },
+    putDefinition: (payload) => httpClient.putDefinition(payload),
+    log: logFn,
+  });
+
   const bufferDeps: EventBufferDeps = {
     flushFn: async (events: UsageEvent[]) => {
       await httpClient.postBatch(events);
@@ -147,6 +160,13 @@ export const createPlugin = async ({
       ...fields,
     } as UsageEvent;
 
+    // Lazy fallback: ensure unknown definition hashes are registered
+    const agentField = event.agent as Record<string, unknown> | undefined;
+    const defHash = agentField?.definitionHash as string | undefined;
+    if (defHash && !uploader.uploadedHashes.has(defHash)) {
+      void uploader.ensureDefinition(defHash);
+    }
+
     const result = usageEventSchema.safeParse(event);
     if (result.success) {
       buffer.enqueue(result.data);
@@ -166,7 +186,11 @@ export const createPlugin = async ({
     enqueueEvent({
       session: { id: ctx.sessionId },
       execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
-      agent: { name: ctx.agentName ?? 'unknown' },
+      agent: {
+        name: ctx.agentName ?? 'unknown',
+        ...(ctx.version !== undefined && { version: ctx.version }),
+        ...(ctx.definitionHash !== undefined && { definitionHash: ctx.definitionHash }),
+      },
     });
   }
 
@@ -209,7 +233,11 @@ export const createPlugin = async ({
       session: { id: ctx.sessionId },
       execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
       ...fields,
-      agent: { name: ctx?.agentName ?? 'unknown' },
+      agent: {
+        name: ctx?.agentName ?? 'unknown',
+        ...(ctx?.version !== undefined && { version: ctx.version }),
+        ...(ctx?.definitionHash !== undefined && { definitionHash: ctx.definitionHash }),
+      },
     });
   }
 
@@ -232,7 +260,11 @@ export const createPlugin = async ({
         ...(mapperExec as Record<string, unknown> || {}),
       },
       ...restFields,
-      agent: { name: ctx?.agentName ?? 'unknown' },
+      agent: {
+        name: ctx?.agentName ?? 'unknown',
+        ...(ctx?.version !== undefined && { version: ctx.version }),
+        ...(ctx?.definitionHash !== undefined && { definitionHash: ctx.definitionHash }),
+      },
     });
   }
 
@@ -243,6 +275,19 @@ export const createPlugin = async ({
     };
     const fields = mapToolAfter(payload, toolCalls);
     if (Object.keys(fields).length === 0) return;
+
+    // When the completed tool is a skill, call mapSkillComplete to emit skill_call event type
+    const tc = toolCalls.get(payload.input.callID);
+    if (tc?.toolName === 'skill' && tc.skillName) {
+      const skillFields = mapSkillComplete({
+        skill: {
+          name: tc.skillName,
+          version: tc.version,
+          definitionHash: tc.definitionHash,
+        },
+      });
+      Object.assign(fields, skillFields);
+    }
 
     // Prefer sessionID from the hook payload; fall back to first active execution
     const sessionId = payload.input.sessionID
@@ -257,7 +302,11 @@ export const createPlugin = async ({
         ...(mapperExec as Record<string, unknown> || {}),
       },
       ...restFields,
-      agent: { name: ctx?.agentName ?? 'unknown' },
+      agent: {
+        name: ctx?.agentName ?? 'unknown',
+        ...(ctx?.version !== undefined && { version: ctx.version }),
+        ...(ctx?.definitionHash !== undefined && { definitionHash: ctx.definitionHash }),
+      },
     });
   }
 
@@ -278,6 +327,13 @@ export const createPlugin = async ({
       log: logFn,
     }),
   };
+
+  // Startup: scan definition directories and upload known definitions
+  const definitionDirs = [
+    join(directory, '.opencode', 'skills'),
+    join(directory, '.opencode', 'agents'),
+  ];
+  await uploader.scanDefinitions(definitionDirs);
 
   await client.app.log({
     body: {

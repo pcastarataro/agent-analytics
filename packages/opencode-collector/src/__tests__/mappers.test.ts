@@ -306,6 +306,27 @@ describe('Tool-Skill Mapper', () => {
           expect(result.execution).toEqual({ eventType: 'tool_call' });
         },
       ],
+      [
+        'skill with version/hash populates ToolCall and skill output',
+        FIXTURES.skillToolExecuteBeforeWithVersion,
+        (result: Record<string, unknown>, toolCalls: Map<string, ToolCall>) => {
+          expect(result.skill).toEqual({ name: 'research', version: '0.3.1', definitionHash: 'd4e5f6' });
+          const tc = toolCalls.get('call-003')!;
+          expect(tc.version).toBe('0.3.1');
+          expect(tc.definitionHash).toBe('d4e5f6');
+          expect(tc.skillName).toBe('research');
+        },
+      ],
+      [
+        'skill without version/hash keeps them undefined',
+        FIXTURES.skillToolExecuteBefore,
+        (result: Record<string, unknown>, toolCalls: Map<string, ToolCall>) => {
+          expect(result.skill).toEqual({ name: 'sdd-apply' });
+          const tc = toolCalls.get('call-002')!;
+          expect(tc.version).toBeUndefined();
+          expect(tc.definitionHash).toBeUndefined();
+        },
+      ],
     ])('%s', (_name, payload, assertion) => {
       const toolCalls = createToolCalls();
       const result = mapToolBefore(payload, toolCalls);
@@ -353,6 +374,25 @@ describe('Tool-Skill Mapper', () => {
         FIXTURES.toolExecuteAfterSuccess,
         (result: Record<string, unknown>) => {
           expect(result.execution).toEqual({ eventType: 'tool_call' });
+        },
+      ],
+      [
+        'skill tool after carries version/hash from ToolCall',
+        FIXTURES.toolExecuteAfterSuccess,
+        (result: Record<string, unknown>, toolCalls: Map<string, ToolCall>) => {
+          // Pre-seed a skill ToolCall with version/hash
+          toolCalls.clear();
+          toolCalls.set('call-001', {
+            callID: 'call-001',
+            toolName: 'skill',
+            skillName: 'research',
+            version: '0.3.1',
+            definitionHash: 'd4e5f6',
+            startTime: Date.now(),
+          });
+          const skillResult = mapToolAfter(FIXTURES.toolExecuteAfterSuccess, toolCalls);
+          expect(skillResult.skill).toEqual({ name: 'research', version: '0.3.1', definitionHash: 'd4e5f6' });
+          expect(skillResult.execution).toEqual({ eventType: 'tool_call' });
         },
       ],
     ])('%s', (_name, payload, assertion) => {

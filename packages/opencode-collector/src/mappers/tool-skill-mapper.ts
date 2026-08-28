@@ -15,10 +15,18 @@ export function mapToolBefore(
   if (tool === 'skill') {
     const skillName =
       ((args as Record<string, unknown> | undefined)?.name as string) ?? 'unknown';
+    const version = (args as Record<string, unknown> | undefined)?.version as string | undefined;
+    const definitionHash = (args as Record<string, unknown> | undefined)?.definitionHash as string | undefined;
     tc.skillName = skillName;
+    tc.version = version;
+    tc.definitionHash = definitionHash;
     return {
       execution: { eventType: 'tool_call' as const },
-      skill: { name: skillName },
+      skill: {
+        name: skillName,
+        ...(version !== undefined && { version }),
+        ...(definitionHash !== undefined && { definitionHash }),
+      },
       tool: { name: tool },
     };
   }
@@ -43,7 +51,13 @@ export function mapToolAfter(
   return {
     execution: { eventType: 'tool_call' as const },
     tool: { name: tc.toolName },
-    ...(tc.skillName !== undefined && { skill: { name: tc.skillName } }),
+    ...(tc.skillName !== undefined && {
+      skill: {
+        name: tc.skillName,
+        ...(tc.version !== undefined && { version: tc.version }),
+        ...(tc.definitionHash !== undefined && { definitionHash: tc.definitionHash }),
+      },
+    }),
     metrics: {
       durationMs: tc.endTime - tc.startTime,
     },

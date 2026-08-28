@@ -22,7 +22,7 @@ export function mapUserMessage(
     agent?: string;
   },
   context: ExecutionContext,
-  config: CollectorConfig,
+  _config: CollectorConfig,
 ): Record<string, unknown> {
   const privacy = computePromptPrivacy(payload.message.text);
 
