@@ -201,3 +201,15 @@ export interface Definition {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface SkillVersion {
+  skillName: string;
+  definitionHash: string;
+  version: string | null;
+  content: string;
+  createdAt: string;
+  executionCount: number;
+  successRate: number;
+  avgCost: number;
+  totalCost: number;
+}

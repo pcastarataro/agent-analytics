@@ -18,8 +18,15 @@ export function createDefinitionRoutes(repository: EventRepository): Router {
       try {
         const { entityType, entityName } = req.query as Record<string, string | undefined>;
 
+        if (!entityType && !entityName) {
+          // List all definitions
+          const definitions = await repository.getAllDefinitions();
+          res.json({ data: definitions });
+          return;
+        }
+
         if (!entityType || !entityName) {
-          res.status(400).json({ error: 'entityType and entityName query params are required' });
+          res.status(400).json({ error: 'Both entityType and entityName are required when filtering' });
           return;
         }
 

@@ -11,7 +11,7 @@ export function DefinitionsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/v1/definitions?entityType=skill&entityName=__all__')
+    fetch('/v1/definitions')
       .then((res) => {
         if (!res.ok) return { data: [] };
         return res.json();

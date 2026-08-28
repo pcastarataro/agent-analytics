@@ -186,6 +186,18 @@ export interface Definition {
   updatedAt: Date;
 }
 
+export interface SkillVersion {
+  skillName: string;
+  definitionHash: string;
+  version: string | null;
+  content: string;
+  createdAt: Date;
+  executionCount: number;
+  successRate: number;
+  avgCost: number;
+  totalCost: number;
+}
+
 export interface EventRepository {
   insertBatch(events: UsageEvent[]): Promise<number>;
   findById(id: string): Promise<UsageEvent | null>;
@@ -210,6 +222,8 @@ export interface EventRepository {
   getDefinitionByHash(hash: string): Promise<Definition | null>;
   upsertDefinition(hash: string, content: string, entityType: string, entityName: string, version?: string | null): Promise<void>;
   getDefinitionsByEntity(entityType: string, entityName: string): Promise<Definition[]>;
+  getAllDefinitions(): Promise<Definition[]>;
+  getSkillVersions(filters?: DateFilters): Promise<SkillVersion[]>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -1005,6 +1019,87 @@ export function createDrizzleRepository(
         createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
         updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
       }));
+    },
+
+    async getAllDefinitions(): Promise<Definition[]> {
+      const rows = await db
+        .select()
+        .from(definitions)
+        .orderBy(definitions.updatedAt);
+      return rows.map((row) => ({
+        hash: row.hash,
+        content: row.content,
+        entityType: row.entityType,
+        entityName: row.entityName,
+        version: row.version,
+        createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt : new Date(row.updatedAt),
+      }));
+    },
+
+    async getSkillVersions(filters?: DateFilters): Promise<SkillVersion[]> {
+      // Get all skill definitions
+      const skillDefs = await db
+        .select()
+        .from(definitions)
+        .where(eq(definitions.entityType, 'skill'))
+        .orderBy(definitions.entityName, definitions.updatedAt);
+
+      // Get usage stats grouped by (skillName, definitionHash)
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      conditions.push(
+        sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`,
+      );
+      conditions.push(
+        sql`(${usageEvents.skill}::jsonb->>'definitionHash') IS NOT NULL`,
+      );
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const statsRows = await db
+        .select({
+          skillName: sql<string>`${usageEvents.skill}::jsonb->>'name'`,
+          definitionHash: sql<string>`${usageEvents.skill}::jsonb->>'definitionHash'`,
+          executionCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`, sql`${usageEvents.skill}::jsonb->>'definitionHash'`);
+
+      // Build a map of stats by definitionHash
+      const statsMap = new Map<string, { executionCount: number; successRate: number; avgCost: number; totalCost: number }>();
+      for (const row of statsRows) {
+        statsMap.set(row.definitionHash, {
+          executionCount: row.executionCount,
+          successRate: Number(row.successRate),
+          avgCost: Number(row.avgCost),
+          totalCost: Number(row.totalCost),
+        });
+      }
+
+      // Combine definitions with stats
+      return skillDefs.map((def) => {
+        const stats = statsMap.get(def.hash);
+        return {
+          skillName: def.entityName,
+          definitionHash: def.hash,
+          version: def.version,
+          content: def.content,
+          createdAt: def.createdAt instanceof Date ? def.createdAt : new Date(def.createdAt),
+          executionCount: stats?.executionCount ?? 0,
+          successRate: stats?.successRate ?? 0,
+          avgCost: stats?.avgCost ?? 0,
+          totalCost: stats?.totalCost ?? 0,
+        };
+      });
     },
   };
 }
