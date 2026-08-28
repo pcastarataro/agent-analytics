@@ -49,7 +49,7 @@ export function DefinitionUpload({
     setMessage(null);
 
     try {
-      const hash = await computeHash(entityType, entityName);
+      const hash = await computeHash(content);
       const res = await fetch(`/v1/definitions/${hash}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -119,10 +119,9 @@ export function DefinitionUpload({
   );
 }
 
-async function computeHash(entityType: string, entityName: string): Promise<string> {
-  const data = `${entityType}:${entityName}`;
+async function computeHash(content: string): Promise<string> {
   const encoder = new TextEncoder();
-  const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(content));
   return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
