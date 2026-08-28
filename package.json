@@ -13,7 +13,8 @@
     "packages/opencode-collector",
     "packages/event-schema",
     "packages/database",
-    "packages/shared"
+    "packages/shared",
+    "packages/installer"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
