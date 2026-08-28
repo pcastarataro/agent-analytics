@@ -32,11 +32,15 @@ export const AgentAnalyticsPlugin = async (input: PluginInput) => {
     worktree: input.worktree,
   });
 
-  const collectorSessionCreated = hooks['session.created'] as ((input: unknown) => void) | undefined;
-  const collectorMessageUpdated = hooks['message.updated'] as ((input: unknown) => void) | undefined;
-  const collectorToolBefore = hooks['tool.execute.before'] as ((input: unknown) => void) | undefined;
+  const collectorSessionCreated = hooks['session.created'] as
+    ((input: unknown) => void) | undefined;
+  const collectorMessageUpdated = hooks['message.updated'] as
+    ((input: unknown) => void) | undefined;
+  const collectorToolBefore = hooks['tool.execute.before'] as
+    ((input: unknown) => void) | undefined;
   const collectorToolAfter = hooks['tool.execute.after'] as ((input: unknown) => void) | undefined;
-  const collectorSessionIdle = hooks['session.idle'] as ((input: unknown) => Promise<void>) | undefined;
+  const collectorSessionIdle = hooks['session.idle'] as
+    ((input: unknown) => Promise<void>) | undefined;
 
   return {
     async event({ event }: { event: { type: string; properties: Record<string, unknown> } }) {

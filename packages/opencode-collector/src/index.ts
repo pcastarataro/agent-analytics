@@ -39,11 +39,12 @@ function resolveConfig(directory: string): CollectorConfig {
   env[ENV_DISABLED] = process.env[ENV_DISABLED];
 
   let fileConfig: Record<string, unknown> | undefined;
+  const configPath = join(directory, '.opencode', 'analytics.json');
   try {
-    const raw = readFileSync(join(directory, '.opencode', 'analytics.json'), 'utf-8');
+    const raw = readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     fileConfig = parsed.collector as Record<string, unknown> | undefined;
-  } catch {
+  } catch (e) {
     // File absent or malformed — file layer stays undefined
   }
 
@@ -183,8 +184,8 @@ export const createPlugin = async ({
     const payload = input as { session: { id: string; parentID?: string } };
     logFn({
       service: 'opencode-collector',
-      level: 'debug',
-      message: `session.created payload: ${JSON.stringify(payload)}`,
+      level: 'info',
+      message: `HOOK session.created FULL: ${JSON.stringify(input).slice(0, 500)}`,
     });
     const ctx = mapSessionCreated(payload, executions, edges);
     enqueueEvent({
@@ -206,8 +207,8 @@ export const createPlugin = async ({
     };
     logFn({
       service: 'opencode-collector',
-      level: 'debug',
-      message: `message.updated type=${payload.type} sessionID=${payload.sessionID} keys=${Object.keys(payload.message ?? {}).join(',')}`,
+      level: 'info',
+      message: `HOOK message.updated FULL: ${JSON.stringify(input).slice(0, 500)}`,
     });
     if (payload.type !== 'user' && payload.type !== 'assistant') return;
     if (!payload.sessionID) return;
@@ -256,14 +257,14 @@ export const createPlugin = async ({
     };
     logFn({
       service: 'opencode-collector',
-      level: 'debug',
-      message: `tool.execute.before tool=${payload.input.tool} sessionID=${payload.input.sessionID}`,
+      level: 'info',
+      message: `HOOK tool.before tool=${payload.input.tool} args=${JSON.stringify(payload.input.args ?? {}).slice(0, 300)} sessionID=${payload.input.sessionID}`,
     });
     const fields = mapToolBefore(payload, toolCalls);
 
     // Prefer sessionID from the hook payload; fall back to first active execution
-    const sessionId = payload.input.sessionID
-      ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
+    const sessionId =
+      payload.input.sessionID ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     const { execution: mapperExec, ...restFields } = fields;
@@ -271,7 +272,7 @@ export const createPlugin = async ({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: {
         ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),
-        ...(mapperExec as Record<string, unknown> || {}),
+        ...((mapperExec as Record<string, unknown>) || {}),
       },
       ...restFields,
       agent: {
@@ -287,11 +288,11 @@ export const createPlugin = async ({
       input: { callID: string; sessionID?: string };
       result?: { error?: boolean };
     };
+    const tc = toolCalls.get(payload.input.callID);
     const fields = mapToolAfter(payload, toolCalls);
     if (Object.keys(fields).length === 0) return;
 
     // When the completed tool is a skill, call mapSkillComplete to emit skill_call event type
-    const tc = toolCalls.get(payload.input.callID);
     if (tc?.toolName === 'skill' && tc.skillName) {
       const skillFields = mapSkillComplete({
         skill: {
@@ -304,8 +305,8 @@ export const createPlugin = async ({
     }
 
     // Prefer sessionID from the hook payload; fall back to first active execution
-    const sessionId = payload.input.sessionID
-      ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
+    const sessionId =
+      payload.input.sessionID ?? (executions.size > 0 ? [...executions.keys()]![0] : undefined);
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     const { execution: mapperExec, ...restFields } = fields;
@@ -313,7 +314,7 @@ export const createPlugin = async ({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: {
         ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),
-        ...(mapperExec as Record<string, unknown> || {}),
+        ...((mapperExec as Record<string, unknown>) || {}),
       },
       ...restFields,
       agent: {
@@ -344,10 +345,7 @@ export const createPlugin = async ({
 
   // Startup: scan definition directories and upload known definitions
   const globalConfigDir = join(homedir(), '.config', 'opencode');
-  const definitionDirs = [
-    join(globalConfigDir, 'skills'),
-    join(globalConfigDir, 'agents'),
-  ];
+  const definitionDirs = [join(globalConfigDir, 'skills'), join(globalConfigDir, 'agents')];
   const indexedCount = await uploader.buildIndex(definitionDirs);
 
   await client.app.log({
