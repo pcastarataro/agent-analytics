@@ -11,9 +11,15 @@ export interface DefinitionUploaderDeps {
   log: (entry: { service: string; level: string; message: string }) => void;
 }
 
+export interface DefinitionIndex {
+  path: string;
+  type: 'skill' | 'agent';
+}
+
 export interface DefinitionUploader {
+  buildIndex(dirs: string[]): Promise<number>;
   scanDefinitions(dirs: string[]): Promise<void>;
-  ensureDefinition(hash: string): Promise<void>;
+  ensureDefinition(hash: string, name?: string): Promise<void>;
   uploadedHashes: Set<string>;
 }
 
@@ -34,12 +40,99 @@ function inferName(filePath: string): string {
 export function createDefinitionUploader(deps: DefinitionUploaderDeps): DefinitionUploader {
   const { readFile, readdir, putDefinition, log } = deps;
   const uploadedHashes = new Set<string>();
+  const definitionIndex = new Map<string, DefinitionIndex>();
+
+  async function buildIndex(dirs: string[]): Promise<number> {
+    async function walkDir(dir: string): Promise<void> {
+      let entries: string[];
+      try {
+        entries = readdir(dir);
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = join(dir, entry);
+        try {
+          readFile(fullPath);
+          // It's a file — index it
+          const name = inferName(fullPath);
+          definitionIndex.set(name, { path: fullPath, type: inferType(fullPath) });
+        } catch {
+          // It's a directory — recurse
+          await walkDir(fullPath);
+        }
+      }
+    }
+
+    for (const dir of dirs) {
+      await walkDir(dir);
+    }
+    return definitionIndex.size;
+  }
+
+  async function scanFile(filePath: string): Promise<void> {
+    let content: string;
+    try {
+      content = readFile(filePath);
+    } catch {
+      // Might be a directory — try recursing into it
+      let children: string[];
+      try {
+        children = readdir(filePath);
+      } catch {
+        log({
+          service: 'opencode-collector',
+          level: 'warn',
+          message: `Failed to read definition file, skipping: ${filePath}`,
+        });
+        return;
+      }
+
+      for (const child of children) {
+        await scanFile(join(filePath, child));
+      }
+      return;
+    }
+
+    if (content.length > MAX_FILE_SIZE) {
+      log({
+        service: 'opencode-collector',
+        level: 'warn',
+        message: `Definition file exceeds 1MB limit, skipping: ${filePath}`,
+      });
+      return;
+    }
+
+    const hash = computeHash(content);
+
+    if (uploadedHashes.has(hash)) return;
+
+    const payload: DefinitionPayload = {
+      hash,
+      name: inferName(filePath),
+      type: inferType(filePath),
+      content,
+      path: filePath,
+    };
+
+    try {
+      await putDefinition(payload);
+      uploadedHashes.add(hash);
+    } catch {
+      log({
+        service: 'opencode-collector',
+        level: 'error',
+        message: `Failed to upload definition: ${filePath}`,
+      });
+      // Hash NOT cached — will retry on next scan or lazy fallback
+    }
+  }
 
   async function scanDefinitions(dirs: string[]): Promise<void> {
     for (const dir of dirs) {
-      let files: string[];
+      let entries: string[];
       try {
-        files = readdir(dir);
+        entries = readdir(dir);
       } catch {
         log({
           service: 'opencode-collector',
@@ -49,66 +142,61 @@ export function createDefinitionUploader(deps: DefinitionUploaderDeps): Definiti
         continue;
       }
 
-      for (const file of files) {
-        const filePath = join(dir, file);
-
-        let content: string;
-        try {
-          content = readFile(filePath);
-        } catch {
-          log({
-            service: 'opencode-collector',
-            level: 'warn',
-            message: `Failed to read definition file, skipping: ${filePath}`,
-          });
-          continue;
-        }
-
-        if (content.length > MAX_FILE_SIZE) {
-          log({
-            service: 'opencode-collector',
-            level: 'warn',
-            message: `Definition file exceeds 1MB limit, skipping: ${filePath}`,
-          });
-          continue;
-        }
-
-        const hash = computeHash(content);
-
-        if (uploadedHashes.has(hash)) continue;
-
-        const payload: DefinitionPayload = {
-          hash,
-          name: inferName(filePath),
-          type: inferType(filePath),
-          content,
-          path: filePath,
-        };
-
-        try {
-          await putDefinition(payload);
-          uploadedHashes.add(hash);
-        } catch {
-          log({
-            service: 'opencode-collector',
-            level: 'error',
-            message: `Failed to upload definition: ${filePath}`,
-          });
-          // Hash NOT cached — will retry on next scan or lazy fallback
-        }
+      for (const entry of entries) {
+        await scanFile(join(dir, entry));
       }
     }
   }
 
-  async function ensureDefinition(hash: string): Promise<void> {
+  async function ensureDefinition(hash: string, name?: string): Promise<void> {
     if (uploadedHashes.has(hash)) return;
 
-    // Lazy fallback — hash-only guard to prevent re-enqueue retries.
-    // Note: Without the file content, we cannot compute a new PUT.
-    // The startup scan (scanDefinitions) is the primary upload path.
-    // This guard ensures we don't waste cycles on hashes we already know about.
-    uploadedHashes.add(hash);
+    if (!name || !definitionIndex.has(name)) {
+      uploadedHashes.add(hash);
+      if (name) {
+        log({
+          service: 'opencode-collector',
+          level: 'warn',
+          message: `Definition not found in index: ${name}`,
+        });
+      }
+      return;
+    }
+
+    const entry = definitionIndex.get(name)!;
+    let content: string;
+    try {
+      content = readFile(entry.path);
+    } catch {
+      uploadedHashes.add(hash);
+      log({
+        service: 'opencode-collector',
+        level: 'warn',
+        message: `Definition file not found: ${entry.path}`,
+      });
+      return;
+    }
+
+    const payload: DefinitionPayload = {
+      hash,
+      name,
+      type: entry.type,
+      content,
+      path: entry.path,
+    };
+
+    try {
+      await putDefinition(payload);
+      uploadedHashes.add(hash);
+    } catch {
+      // Hash NOT cached — allows retry on next event
+      log({
+        service: 'opencode-collector',
+        level: 'error',
+        message: `Failed to upload definition: ${entry.path}`,
+      });
+    }
   }
 
-  return { scanDefinitions, ensureDefinition, uploadedHashes };
+  return { buildIndex, scanDefinitions, ensureDefinition, uploadedHashes };
 }

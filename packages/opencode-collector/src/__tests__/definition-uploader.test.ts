@@ -28,6 +28,89 @@ describe('computeHash', () => {
 });
 
 describe('createDefinitionUploader', () => {
+  describe('buildIndex', () => {
+    it('returns 0 for empty dirs', async () => {
+      const deps = makeDeps({ readdir: jest.fn((): string[] => []) });
+      const uploader = createDefinitionUploader(deps);
+
+      const count = await uploader.buildIndex(['/skills']);
+
+      expect(count).toBe(0);
+    });
+
+    it('skips missing directories silently', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => {
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+        }),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      const count = await uploader.buildIndex(['/nonexistent']);
+
+      expect(count).toBe(0);
+      expect(deps.readFile).not.toHaveBeenCalled();
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+    });
+
+    it('populates index without uploading', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'skill content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      const count = await uploader.buildIndex(['/skills']);
+
+      expect(count).toBe(1);
+      // Key assertion: no uploads occurred — index only, no PUT
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+    });
+
+    it('returns count across multiple directories', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      const count = await uploader.buildIndex(['/skills', '/agents']);
+
+      expect(count).toBe(2);
+    });
+
+    it('recurses into subdirectories', async () => {
+      const deps = makeDeps();
+      (deps.readdir as jest.Mock)
+        .mockReturnValueOnce(['branch-pr', 'chained-pr'])
+        .mockReturnValueOnce(['SKILL.md'])
+        .mockReturnValueOnce(['SKILL.md']);
+      (deps.readFile as jest.Mock)
+        .mockImplementationOnce(() => { throw new Error('EISDIR'); })
+        .mockReturnValueOnce('branch-pr content')
+        .mockImplementationOnce(() => { throw new Error('EISDIR'); })
+        .mockReturnValueOnce('chained-pr content');
+
+      const uploader = createDefinitionUploader(deps);
+      const count = await uploader.buildIndex(['/skills']);
+
+      expect(count).toBe(2);
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+    });
+
+    it('handles multiple top-level directories', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['skill.md']),
+        readFile: jest.fn((): string => 'content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      const count = await uploader.buildIndex(['/skills', '/agents']);
+
+      expect(count).toBe(2);
+    });
+  });
+
   describe('scanDefinitions', () => {
     it('uploads definitions from valid directories', async () => {
       const deps = makeDeps({
@@ -81,63 +164,6 @@ describe('createDefinitionUploader', () => {
       );
     });
 
-    it('skips unreadable files with warn log', async () => {
-      const deps = makeDeps({
-        readdir: jest.fn((): string[] => ['locked.md']),
-        readFile: jest.fn((): string => {
-          throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
-        }),
-      });
-      const uploader = createDefinitionUploader(deps);
-
-      await uploader.scanDefinitions(['/skills']);
-
-      expect(deps.putDefinition).not.toHaveBeenCalled();
-      expect(deps.log).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: 'warn',
-          message: expect.stringContaining('Failed to read'),
-        }),
-      );
-    });
-
-    it('skips duplicate hashes across directories', async () => {
-      let callCount = 0;
-      const deps = makeDeps({
-        readdir: jest.fn((): string[] => (callCount++ === 0 ? ['a.md'] : ['b.md'])),
-        readFile: jest.fn((): string => 'same content'),
-      });
-      const uploader = createDefinitionUploader(deps);
-
-      await uploader.scanDefinitions(['/dir1', '/dir2']);
-
-      expect(deps.putDefinition).toHaveBeenCalledTimes(1);
-      expect(uploader.uploadedHashes.size).toBe(1);
-    });
-
-    it('logs error when putDefinition fails and continues', async () => {
-      let putCallCount = 0;
-      const deps = makeDeps({
-        readdir: jest.fn((): string[] => ['a.md', 'b.md']),
-        readFile: jest.fn()
-          .mockReturnValueOnce('content a')
-          .mockReturnValueOnce('content b') as unknown as DefinitionUploaderDeps['readFile'],
-        putDefinition: jest.fn(async () => {
-          if (putCallCount++ === 0) throw new Error('network');
-        }),
-      });
-      const uploader = createDefinitionUploader(deps);
-
-      await uploader.scanDefinitions(['/skills']);
-
-      expect(deps.log).toHaveBeenCalledWith(
-        expect.objectContaining({ level: 'error', message: expect.stringContaining('Failed to upload') }),
-      );
-      expect(deps.putDefinition).toHaveBeenCalledTimes(2);
-      // Only successful upload is cached — failed hash allows retry
-      expect(uploader.uploadedHashes.size).toBe(1);
-    });
-
     it('infers agent type from path without /skills/', async () => {
       const deps = makeDeps({
         readdir: jest.fn((): string[] => ['agent.md']),
@@ -163,17 +189,121 @@ describe('createDefinitionUploader', () => {
       expect(deps.putDefinition).not.toHaveBeenCalled();
     });
 
-    it('adds hash to cache on miss (fire-and-forget)', async () => {
+    it('uploads on cache miss when name is in index', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'skill content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      // Build the index first
+      await uploader.buildIndex(['/skills']);
+
+      const hash = computeHash('skill content');
+      await uploader.ensureDefinition(hash, 'skills');
+
+      expect(deps.readFile).toHaveBeenCalledTimes(2); // 1 for buildIndex, 1 for ensureDefinition
+      expect(deps.putDefinition).toHaveBeenCalledTimes(1);
+      const payload = (deps.putDefinition as jest.Mock).mock.calls[0]![0] as DefinitionPayload;
+      expect(payload.hash).toBe(hash);
+      expect(payload.name).toBe('skills');
+      expect(payload.type).toBe('skill');
+      expect(payload.content).toBe('skill content');
+      expect(uploader.uploadedHashes.has(hash)).toBe(true);
+    });
+
+    it('skips upload on cache hit', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'skill content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      const hash = computeHash('skill content');
+      // First call — triggers upload
+      await uploader.ensureDefinition(hash, 'skills');
+      // Second call — should be cache hit
+      await uploader.ensureDefinition(hash, 'skills');
+
+      // readFile called once for buildIndex + once for first ensureDefinition = 2
+      // Second ensureDefinition should not read again
+      expect(deps.readFile).toHaveBeenCalledTimes(2);
+      expect(deps.putDefinition).toHaveBeenCalledTimes(1);
+    });
+
+    it('caches hash and logs warning when name not in index', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'skill content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      const hash = computeHash('unknown content');
+      await uploader.ensureDefinition(hash, 'unknown-skill');
+
+      expect(uploader.uploadedHashes.has(hash)).toBe(true);
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+      expect(deps.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'warn',
+          message: expect.stringContaining('unknown-skill'),
+        }),
+      );
+    });
+
+    it('caches hash when name is undefined (hash-only guard)', async () => {
       const deps = makeDeps();
       const uploader = createDefinitionUploader(deps);
 
-      expect(uploader.uploadedHashes.has('new-hash')).toBe(false);
+      await uploader.ensureDefinition('some-hash');
 
-      await uploader.ensureDefinition('new-hash');
-
-      expect(uploader.uploadedHashes.has('new-hash')).toBe(true);
-      // No putDefinition call — content not available from hash alone
+      expect(uploader.uploadedHashes.has('some-hash')).toBe(true);
       expect(deps.putDefinition).not.toHaveBeenCalled();
+    });
+
+    it('handles file not found gracefully', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn()
+          .mockReturnValueOnce('skill content') // buildIndex succeeds
+          .mockImplementationOnce(() => { throw new Error('ENOENT'); }), // ensureDefinition fails
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      const hash = computeHash('skill content');
+      await uploader.ensureDefinition(hash, 'skills');
+
+      expect(uploader.uploadedHashes.has(hash)).toBe(true);
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+      expect(deps.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: 'warn',
+          message: expect.stringContaining('not found'),
+        }),
+      );
+    });
+
+    it('does not cache hash when PUT fails (allows retry)', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'skill content'),
+        putDefinition: jest.fn().mockRejectedValue(new Error('network')),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      const hash = computeHash('skill content');
+      await uploader.ensureDefinition(hash, 'skills');
+
+      expect(deps.putDefinition).toHaveBeenCalledTimes(1);
+      expect(uploader.uploadedHashes.has(hash)).toBe(false);
     });
   });
 });

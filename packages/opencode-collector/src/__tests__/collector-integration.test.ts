@@ -29,7 +29,7 @@ jest.mock('../infra/boundary', () => ({
   withBoundary: jest.fn((fn: any) => fn),
 }));
 
-// ── Helper: build a uploader mock with real scanDefinitions behavior ──────────
+// ── Helper: build a uploader mock with real buildIndex behavior ──────────
 function buildUploaderMock(overrides?: {
   uploadedHashes?: Set<string>;
   readdirFn?: (dir: string) => string[];
@@ -38,6 +38,33 @@ function buildUploaderMock(overrides?: {
   const hashes = overrides?.uploadedHashes ?? new Set<string>();
   const readdirFn = overrides?.readdirFn ?? (() => []);
   const readFileFn = overrides?.readFileFn ?? (() => '');
+  const definitionIndex = new Map<string, { path: string; type: 'skill' | 'agent' }>();
+
+  const buildIndex = jest.fn(async (dirs: string[]) => {
+    async function walk(dir: string) {
+      let entries: string[];
+      try {
+        entries = readdirFn(dir);
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = `${dir}/${entry}`;
+        try {
+          readFileFn(fullPath);
+          const name = fullPath.split('/').slice(-2, -1)[0] ?? 'unknown';
+          const type = fullPath.includes('skills') ? 'skill' : 'agent';
+          definitionIndex.set(name, { path: fullPath, type });
+        } catch {
+          await walk(fullPath);
+        }
+      }
+    }
+    for (const dir of dirs) {
+      await walk(dir);
+    }
+    return definitionIndex.size;
+  });
 
   const scanDefinitions = jest.fn(async (dirs: string[]) => {
     for (const dir of dirs) {
@@ -70,11 +97,24 @@ function buildUploaderMock(overrides?: {
     hashes.add(payload.hash);
   });
 
-  const ensureDefinition = jest.fn(async (hash: string) => {
+  const ensureDefinition = jest.fn(async (hash: string, name?: string) => {
+    if (name && definitionIndex.has(name)) {
+      const entry = definitionIndex.get(name)!;
+      const content = readFileFn(entry.path);
+      const { computeHash } = require('../infra/definition-uploader');
+      const computedHash = computeHash(content);
+      await putDefinition({
+        hash: computedHash,
+        name,
+        type: entry.type,
+        content,
+        path: entry.path,
+      });
+    }
     hashes.add(hash);
   });
 
-  return { scanDefinitions, ensureDefinition, putDefinition, uploadedHashes: hashes };
+  return { buildIndex, scanDefinitions, ensureDefinition, putDefinition, uploadedHashes: hashes };
 }
 
 jest.mock('../infra/definition-uploader', () => {
@@ -92,6 +132,10 @@ const { createPlugin } = require('../index');
 const { createDefinitionUploader } = require('../infra/definition-uploader');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+const { homedir } = require('node:os') as { homedir: () => string };
+const { join } = require('node:path') as { join: (...parts: string[]) => string };
+const globalConfigDir = join(homedir(), '.config', 'opencode');
 
 function makeClient() {
   return {
@@ -117,8 +161,8 @@ const DEFAULT_SKILL_CONTENT = '# Skill definition';
 const DEFAULT_AGENT_CONTENT = '# Agent definition';
 
 function defaultReaddir(dir: string): string[] {
-  if (dir.includes('.opencode/skills')) return DEFAULT_SKILLS;
-  if (dir.includes('.opencode/agents')) return DEFAULT_AGENTS;
+  if (dir.includes('.config/opencode/skills')) return DEFAULT_SKILLS;
+  if (dir.includes('.config/opencode/agents')) return DEFAULT_AGENTS;
   throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
 }
 
@@ -145,20 +189,20 @@ describe('Collector integration: definition-uploader', () => {
   });
 
   describe('Phase 4 — startup scan → upload', () => {
-    it('calls scanDefinitions with .opencode/skills and .opencode/agents on startup', async () => {
+    it('calls buildIndex with ~/.config/opencode/skills and ~/.config/opencode/agents on startup', async () => {
       const uploader = buildUploaderMock();
       createDefinitionUploader.mockReturnValue(uploader);
 
       await createPlugin(makeDeps());
 
-      expect(uploader.scanDefinitions).toHaveBeenCalledTimes(1);
-      expect(uploader.scanDefinitions).toHaveBeenCalledWith([
-        '/workspace/.opencode/skills',
-        '/workspace/.opencode/agents',
+      expect(uploader.buildIndex).toHaveBeenCalledTimes(1);
+      expect(uploader.buildIndex).toHaveBeenCalledWith([
+        join(globalConfigDir, 'skills'),
+        join(globalConfigDir, 'agents'),
       ]);
     });
 
-    it('uploads definitions found in skill directories during startup', async () => {
+    it('indexes skill definitions at startup without uploading', async () => {
       const uploader = buildUploaderMock({
         readdirFn: defaultReaddir,
         readFileFn: defaultReadFile,
@@ -167,16 +211,12 @@ describe('Collector integration: definition-uploader', () => {
 
       await createPlugin(makeDeps());
 
-      expect(mockPutDefinition).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'skill',
-          name: 'SKILL',
-          content: DEFAULT_SKILL_CONTENT,
-        }),
-      );
+      // buildIndex populates index but does NOT upload
+      expect(uploader.buildIndex).toHaveBeenCalledTimes(1);
+      expect(mockPutDefinition).not.toHaveBeenCalled();
     });
 
-    it('uploads definitions found in agent directories during startup', async () => {
+    it('indexes agent definitions at startup without uploading', async () => {
       const uploader = buildUploaderMock({
         readdirFn: defaultReaddir,
         readFileFn: defaultReadFile,
@@ -185,13 +225,9 @@ describe('Collector integration: definition-uploader', () => {
 
       await createPlugin(makeDeps());
 
-      expect(mockPutDefinition).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'agent',
-          name: 'AGENT',
-          content: DEFAULT_AGENT_CONTENT,
-        }),
-      );
+      // buildIndex populates index but does NOT upload
+      expect(uploader.buildIndex).toHaveBeenCalledTimes(1);
+      expect(mockPutDefinition).not.toHaveBeenCalled();
     });
 
     it('returns hooks object after startup scan completes', async () => {
@@ -210,7 +246,7 @@ describe('Collector integration: definition-uploader', () => {
       );
     });
 
-    it('logs collector started with hook names', async () => {
+    it('logs collector started with hook names and definition count', async () => {
       createDefinitionUploader.mockReturnValue(buildUploaderMock());
       const deps = makeDeps();
 
@@ -221,7 +257,7 @@ describe('Collector integration: definition-uploader', () => {
           body: expect.objectContaining({
             service: 'opencode-collector',
             level: 'info',
-            message: 'Collector started',
+            message: expect.stringContaining('Collector started'),
             hooks: expect.arrayContaining(['session.created']),
           }),
         }),
@@ -240,14 +276,12 @@ describe('Collector integration: definition-uploader', () => {
 
       const hooks = await createPlugin(makeDeps());
 
-      // Startup should not throw; only skills uploaded
+      // Startup should not throw; buildIndex handles missing dirs gracefully
       expect(hooks).toEqual(
         expect.objectContaining({ 'session.created': expect.any(Function) }),
       );
-      expect(mockPutDefinition).toHaveBeenCalledTimes(1);
-      expect(mockPutDefinition).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'skill' }),
-      );
+      // buildIndex was called (startup succeeded)
+      expect(uploader.buildIndex).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -309,7 +343,7 @@ describe('Collector integration: definition-uploader', () => {
   });
 
   describe('Phase 5 — full integration flow', () => {
-    it('startup scan and enqueueEvent share the same uploader instance', async () => {
+    it('startup buildIndex and enqueueEvent share the same uploader instance', async () => {
       const uploader = buildUploaderMock({
         readdirFn: defaultReaddir,
         readFileFn: defaultReadFile,
@@ -318,11 +352,12 @@ describe('Collector integration: definition-uploader', () => {
 
       await createPlugin(makeDeps());
 
-      // scanDefinitions was called during startup
-      expect(uploader.scanDefinitions).toHaveBeenCalledTimes(1);
+      // buildIndex was called during startup
+      expect(uploader.buildIndex).toHaveBeenCalledTimes(1);
 
-      // The same instance's uploadedHashes should be populated after scan
-      expect(uploader.uploadedHashes.size).toBe(2); // SKILL.md + AGENT.md
+      // The same instance's uploadedHashes is initially empty (buildIndex doesn't upload)
+      // Index was populated internally by the mock
+      expect(uploader.uploadedHashes.size).toBe(0);
     });
 
     it('event buffer receives events after plugin initialization', async () => {

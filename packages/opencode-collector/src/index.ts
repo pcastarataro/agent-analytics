@@ -1,5 +1,6 @@
 import { randomFillSync } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { usageEventSchema, type UsageEvent } from '@agent-analytics/event-schema';
 import {
@@ -127,11 +128,7 @@ export const createPlugin = async ({
 
   const uploader: DefinitionUploader = createDefinitionUploader({
     readFile: (path) => readFileSync(path, 'utf-8'),
-    readdir: (path) => {
-      return readdirSync(path, { withFileTypes: true })
-        .filter((d) => d.isFile())
-        .map((d) => d.name);
-    },
+    readdir: (path) => readdirSync(path, { withFileTypes: true }).map((d) => d.name),
     putDefinition: (payload) => httpClient.putDefinition(payload),
     log: logFn,
   });
@@ -162,9 +159,11 @@ export const createPlugin = async ({
 
     // Lazy fallback: ensure unknown definition hashes are registered
     const agentField = event.agent as Record<string, unknown> | undefined;
+    const skillField = event.skill as Record<string, unknown> | undefined;
     const defHash = agentField?.definitionHash as string | undefined;
     if (defHash && !uploader.uploadedHashes.has(defHash)) {
-      void uploader.ensureDefinition(defHash);
+      const name = (skillField?.name ?? agentField?.name) as string | undefined;
+      void uploader.ensureDefinition(defHash, name);
     }
 
     const result = usageEventSchema.safeParse(event);
@@ -182,6 +181,11 @@ export const createPlugin = async ({
 
   function handleSessionCreated(input: unknown): void {
     const payload = input as { session: { id: string; parentID?: string } };
+    logFn({
+      service: 'opencode-collector',
+      level: 'debug',
+      message: `session.created payload: ${JSON.stringify(payload)}`,
+    });
     const ctx = mapSessionCreated(payload, executions, edges);
     enqueueEvent({
       session: { id: ctx.sessionId },
@@ -200,6 +204,11 @@ export const createPlugin = async ({
       sessionID?: string;
       message?: Record<string, unknown>;
     };
+    logFn({
+      service: 'opencode-collector',
+      level: 'debug',
+      message: `message.updated type=${payload.type} sessionID=${payload.sessionID} keys=${Object.keys(payload.message ?? {}).join(',')}`,
+    });
     if (payload.type !== 'user' && payload.type !== 'assistant') return;
     if (!payload.sessionID) return;
 
@@ -245,6 +254,11 @@ export const createPlugin = async ({
     const payload = input as {
       input: { callID: string; tool: string; args?: Record<string, unknown>; sessionID?: string };
     };
+    logFn({
+      service: 'opencode-collector',
+      level: 'debug',
+      message: `tool.execute.before tool=${payload.input.tool} sessionID=${payload.input.sessionID}`,
+    });
     const fields = mapToolBefore(payload, toolCalls);
 
     // Prefer sessionID from the hook payload; fall back to first active execution
@@ -329,17 +343,18 @@ export const createPlugin = async ({
   };
 
   // Startup: scan definition directories and upload known definitions
+  const globalConfigDir = join(homedir(), '.config', 'opencode');
   const definitionDirs = [
-    join(directory, '.opencode', 'skills'),
-    join(directory, '.opencode', 'agents'),
+    join(globalConfigDir, 'skills'),
+    join(globalConfigDir, 'agents'),
   ];
-  await uploader.scanDefinitions(definitionDirs);
+  const indexedCount = await uploader.buildIndex(definitionDirs);
 
   await client.app.log({
     body: {
       service: 'opencode-collector',
       level: 'info',
-      message: 'Collector started',
+      message: `Collector started (${indexedCount} definitions indexed)`,
       hooks: Object.keys(hooks),
     },
   });
