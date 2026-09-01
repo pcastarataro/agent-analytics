@@ -441,6 +441,10 @@ export function createDrizzleRepository(
       if (filters?.to !== undefined) {
         conditions.push(lte(usageEvents.timestamp, filters.to));
       }
+      // Filter out unknown agents
+      if (groupBy === 'agentName') {
+        conditions.push(sql`(${usageEvents.agentName}) IS NOT NULL AND (${usageEvents.agentName}) != 'unknown'`);
+      }
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -1022,7 +1026,7 @@ export function createDrizzleRepository(
           totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
-        .where(where)
+        .where(and(where, sql`(${usageEvents.agentName}) IS NOT NULL AND (${usageEvents.agentName}) != 'unknown'`))
         .groupBy(usageEvents.agentName)
         .orderBy(sql`count(*) desc`);
 
