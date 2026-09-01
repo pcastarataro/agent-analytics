@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { SessionEvent } from '../../api/types';
-import { EVENT_COLORS } from './eventColors';
+import { EVENT_COLORS, getGanttColor } from './eventColors';
 import { GanttTooltip } from './GanttTooltip';
 
 export interface GanttChartProps {
@@ -18,13 +18,15 @@ const DEFAULT_MAX_HEIGHT = 600;
 
 /** Derive a human-readable row label from event context. */
 function getRowLabel(event: SessionEvent): string {
+  const agentName = event.agent?.name;
   if (event.eventType === 'tool_call') {
-    const name = (event.tool as Record<string, unknown>)?.name;
-    if (name != null) return String(name);
+    const toolName = (event.tool as Record<string, unknown>)?.name;
+    if (toolName != null) return agentName ? `${agentName} / ${toolName}` : String(toolName);
   }
   if (event.eventType === 'skill_call' && event.skill?.name) {
-    return event.skill.name;
+    return agentName ? `${agentName} / ${event.skill.name}` : event.skill.name;
   }
+  if (agentName) return `${agentName} / ${event.eventType}`;
   return event.eventType;
 }
 
@@ -191,7 +193,7 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
               ? Math.max((durationMs / totalRange) * (width - 2 * PADDING), MIN_BAR_WIDTH)
               : 0;
           const y = index * (ROW_HEIGHT + ROW_GAP);
-          const color = EVENT_COLORS[event.eventType] ?? EVENT_COLORS.unknown;
+          const color = getGanttColor(event);
 
           return (
             <g
@@ -256,15 +258,21 @@ export function GanttChart({ events, width = 800, height }: GanttChartProps) {
         className="sticky bottom-0 z-10 flex flex-wrap gap-4 border-t border-gray-100 bg-white px-4 py-2"
         style={{ position: 'sticky', bottom: 0 }}
       >
-        {Object.entries(EVENT_COLORS).map(([type, color]) => (
-          <div key={type} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-3 w-3 rounded-sm"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-xs text-gray-600">{type}</span>
-          </div>
-        ))}
+        {sortedEvents.map((event, i) => {
+          const label = getRowLabel(event);
+          const color = getGanttColor(event);
+          // Deduplicate by label
+          if (sortedEvents.findIndex((e) => getRowLabel(e) === label) !== i) return null;
+          return (
+            <div key={label} className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-3 w-3 rounded-sm"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs text-gray-600">{label}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

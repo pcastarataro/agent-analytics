@@ -1,5 +1,5 @@
 import type { SessionEvent } from '../../api/types';
-import { EVENT_COLORS } from './eventColors';
+import { getGanttColor } from './eventColors';
 
 interface GanttTooltipProps {
   event: SessionEvent | null;
@@ -24,7 +24,7 @@ function formatTimestamp(ts?: string): string {
 export function GanttTooltip({ event, position }: GanttTooltipProps) {
   if (!event || !position) return null;
 
-  const color = EVENT_COLORS[event.eventType] ?? EVENT_COLORS.unknown;
+  const color = getGanttColor(event);
 
   return (
     <div
@@ -43,6 +43,10 @@ export function GanttTooltip({ event, position }: GanttTooltipProps) {
         <span className="text-sm font-medium text-gray-900">{event.eventType as string}</span>
       </div>
       <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+        {event.agent?.name && <p>Agent: {event.agent.name}</p>}
+        {event.eventType === 'skill_call' && event.skill?.name && (
+          <p>Skill: {event.skill.name}</p>
+        )}
         {event.eventType === 'tool_call' && (event.tool as Record<string, unknown>)?.name != null && (
           <p>Tool: {String((event.tool as Record<string, unknown>).name)}</p>
         )}

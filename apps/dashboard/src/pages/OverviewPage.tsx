@@ -5,7 +5,6 @@ import { ErrorMessage } from '../components/ErrorMessage';
 import { UsageSection } from './OverviewPage/UsageSection';
 import { PerformanceSection } from './OverviewPage/PerformanceSection';
 import { QualitySection } from './OverviewPage/QualitySection';
-import { EvolutionSection } from './OverviewPage/EvolutionSection';
 import { EventsByAgent } from './OverviewPage/EventsByAgent';
 import { CostByAgent } from './OverviewPage/CostByAgent';
 import { EventsOverTime } from './OverviewPage/EventsOverTime';
@@ -33,7 +32,6 @@ export function OverviewPage() {
       <UsageSection data={data.usage} />
       <PerformanceSection data={data.performance} />
       <QualitySection data={data.quality} />
-      <EvolutionSection data={data.evolution} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <EventsByAgent data={data.byAgent} />

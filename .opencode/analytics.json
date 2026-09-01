@@ -1,0 +1,6 @@
+{
+  "collector": {
+    "url": "http://localhost:3000",
+    "userId": "pablo"
+  }
+}

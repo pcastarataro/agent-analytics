@@ -224,6 +224,7 @@ export interface EventRepository {
   getDefinitionsByEntity(entityType: string, entityName: string): Promise<Definition[]>;
   getAllDefinitions(): Promise<Definition[]>;
   getSkillVersions(filters?: DateFilters): Promise<SkillVersion[]>;
+  getUsedEntityNames(): Promise<{ skills: string[]; agents: string[] }>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -1100,6 +1101,23 @@ export function createDrizzleRepository(
           totalCost: stats?.totalCost ?? 0,
         };
       });
+    },
+
+    async getUsedEntityNames(): Promise<{ skills: string[]; agents: string[] }> {
+      const skillRows = await db
+        .selectDistinct({ name: sql<string>`${usageEvents.skill}::jsonb->>'name'` })
+        .from(usageEvents)
+        .where(sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`);
+
+      const agentRows = await db
+        .selectDistinct({ name: sql<string>`${usageEvents.agent}::jsonb->>'name'` })
+        .from(usageEvents)
+        .where(sql`(${usageEvents.agent}::jsonb->>'name') IS NOT NULL AND (${usageEvents.agent}::jsonb->>'name') != 'unknown'`);
+
+      return {
+        skills: skillRows.map((r) => r.name).filter(Boolean),
+        agents: agentRows.map((r) => r.name).filter(Boolean),
+      };
     },
   };
 }

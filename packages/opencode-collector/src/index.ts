@@ -167,6 +167,12 @@ export const createPlugin = async ({
       void uploader.ensureDefinition(defHash, name);
     }
 
+    // Auto-upload skill definitions when skill name is detected
+    const skillName = skillField?.name as string | undefined;
+    if (skillName && skillName !== 'unknown') {
+      void uploader.uploadByName(skillName, 'skill');
+    }
+
     const result = usageEventSchema.safeParse(event);
     if (result.success) {
       buffer.enqueue(result.data);

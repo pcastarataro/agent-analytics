@@ -199,17 +199,20 @@ describe('createDefinitionUploader', () => {
       // Build the index first
       await uploader.buildIndex(['/skills']);
 
-      const hash = computeHash('skill content');
-      await uploader.ensureDefinition(hash, 'skills');
+      const eventHash = computeHash('old content');
+      const currentHash = computeHash('skill content');
+      await uploader.ensureDefinition(eventHash, 'skills');
 
       expect(deps.readFile).toHaveBeenCalledTimes(2); // 1 for buildIndex, 1 for ensureDefinition
       expect(deps.putDefinition).toHaveBeenCalledTimes(1);
       const payload = (deps.putDefinition as jest.Mock).mock.calls[0]![0] as DefinitionPayload;
-      expect(payload.hash).toBe(hash);
+      // Should use computed hash from file content, not event hash
+      expect(payload.hash).toBe(currentHash);
       expect(payload.name).toBe('skills');
       expect(payload.type).toBe('skill');
       expect(payload.content).toBe('skill content');
-      expect(uploader.uploadedHashes.has(hash)).toBe(true);
+      expect(uploader.uploadedHashes.has(currentHash)).toBe(true);
+      expect(uploader.uploadedHashes.has(eventHash)).toBe(true);
     });
 
     it('skips upload on cache hit', async () => {
@@ -221,14 +224,15 @@ describe('createDefinitionUploader', () => {
 
       await uploader.buildIndex(['/skills']);
 
-      const hash = computeHash('skill content');
+      const eventHash = computeHash('event content');
+      const currentHash = computeHash('skill content');
       // First call — triggers upload
-      await uploader.ensureDefinition(hash, 'skills');
-      // Second call — should be cache hit
-      await uploader.ensureDefinition(hash, 'skills');
+      await uploader.ensureDefinition(eventHash, 'skills');
+      // Second call — eventHash already in cache, returns immediately
+      await uploader.ensureDefinition(eventHash, 'skills');
 
       // readFile called once for buildIndex + once for first ensureDefinition = 2
-      // Second ensureDefinition should not read again
+      // Second ensureDefinition returns early (eventHash cached)
       expect(deps.readFile).toHaveBeenCalledTimes(2);
       expect(deps.putDefinition).toHaveBeenCalledTimes(1);
     });
@@ -299,11 +303,84 @@ describe('createDefinitionUploader', () => {
 
       await uploader.buildIndex(['/skills']);
 
-      const hash = computeHash('skill content');
-      await uploader.ensureDefinition(hash, 'skills');
+      const eventHash = computeHash('event content');
+      const currentHash = computeHash('skill content');
+      await uploader.ensureDefinition(eventHash, 'skills');
 
       expect(deps.putDefinition).toHaveBeenCalledTimes(1);
-      expect(uploader.uploadedHashes.has(hash)).toBe(false);
+      // Neither hash should be cached when PUT fails
+      expect(uploader.uploadedHashes.has(currentHash)).toBe(false);
+      expect(uploader.uploadedHashes.has(eventHash)).toBe(false);
+    });
+
+    it('uploads with computed hash when file content differs from event hash', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'updated content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      const eventHash = computeHash('old content');
+      const currentHash = computeHash('updated content');
+      await uploader.ensureDefinition(eventHash, 'skills');
+
+      expect(deps.putDefinition).toHaveBeenCalledTimes(1);
+      const payload = (deps.putDefinition as jest.Mock).mock.calls[0]![0] as DefinitionPayload;
+      expect(payload.hash).toBe(currentHash);
+      expect(payload.content).toBe('updated content');
+      // Both hashes should be marked as covered
+      expect(uploader.uploadedHashes.has(currentHash)).toBe(true);
+      expect(uploader.uploadedHashes.has(eventHash)).toBe(true);
+    });
+  });
+
+  describe('clearCache', () => {
+    it('clears uploaded hashes', async () => {
+      const deps = makeDeps();
+      const uploader = createDefinitionUploader(deps);
+
+      uploader.uploadedHashes.add('hash1');
+      uploader.uploadedHashes.add('hash2');
+      expect(uploader.uploadedHashes.size).toBe(2);
+
+      uploader.clearCache();
+      expect(uploader.uploadedHashes.size).toBe(0);
+    });
+  });
+
+  describe('inferName', () => {
+    it('uses subdirectory name for nested skills', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['pr-review', 'chained-pr']),
+        readFile: jest.fn()
+          .mockImplementationOnce(() => { throw new Error('EISDIR'); })
+          .mockReturnValueOnce('content1')
+          .mockImplementationOnce(() => { throw new Error('EISDIR'); })
+          .mockReturnValueOnce('content2'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.buildIndex(['/skills']);
+
+      // Both should be indexed by their subdirectory name
+      expect(uploader.uploadedHashes.size).toBe(0);
+      expect(deps.putDefinition).not.toHaveBeenCalled();
+    });
+
+    it('uses parent directory name for flat skill files', async () => {
+      const deps = makeDeps({
+        readdir: jest.fn((): string[] => ['SKILL.md']),
+        readFile: jest.fn((): string => 'content'),
+      });
+      const uploader = createDefinitionUploader(deps);
+
+      await uploader.scanDefinitions(['/skills']);
+
+      const payload = (deps.putDefinition as jest.Mock).mock.calls[0]![0] as DefinitionPayload;
+      // Flat structure: /skills/SKILL.md → name = "skills" (parent directory)
+      expect(payload.name).toBe('skills');
     });
   });
 });

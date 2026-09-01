@@ -27,11 +27,13 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/agent_analytics
       PORT: 3000
       CORS_ORIGINS: http://localhost:5173
+      HOST_OPENCODE_DIR: /host-opencode
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./packages/database/migrations:/app/packages/database/migrations
+      - ~/.config/opencode:/host-opencode:ro
 
   dashboard:
     build:

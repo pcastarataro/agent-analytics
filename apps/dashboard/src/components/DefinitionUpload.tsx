@@ -124,6 +124,5 @@ async function computeHash(content: string): Promise<string> {
   const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(content));
   return Array.from(new Uint8Array(buffer))
     .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 32);
+    .join('');
 }

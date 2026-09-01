@@ -20,6 +20,8 @@ export interface DefinitionUploader {
   buildIndex(dirs: string[]): Promise<number>;
   scanDefinitions(dirs: string[]): Promise<void>;
   ensureDefinition(hash: string, name?: string): Promise<void>;
+  uploadByName(name: string, type: 'skill' | 'agent'): Promise<void>;
+  clearCache(): void;
   uploadedHashes: Set<string>;
 }
 
@@ -31,10 +33,14 @@ function inferType(filePath: string): 'skill' | 'agent' {
   return filePath.includes('/skills/') ? 'skill' : 'agent';
 }
 
+/**
+ * Extract definition name from file path.
+ * Convention: skill/agent name = parent directory name.
+ * Example: skills/pr-review/SKILL.md → "pr-review"
+ */
 function inferName(filePath: string): string {
   const parts = filePath.split('/');
-  const lastDir = parts[parts.length - 2] ?? 'unknown';
-  return lastDir;
+  return parts[parts.length - 2] ?? 'unknown';
 }
 
 export function createDefinitionUploader(deps: DefinitionUploaderDeps): DefinitionUploader {
@@ -148,7 +154,12 @@ export function createDefinitionUploader(deps: DefinitionUploaderDeps): Definiti
     }
   }
 
+  /**
+   * Ensure a definition is uploaded. Computes hash from current file content
+   * (not from the event's hash) so content changes are detected.
+   */
   async function ensureDefinition(hash: string, name?: string): Promise<void> {
+    // Fast path: if this exact content hash was already uploaded, skip
     if (uploadedHashes.has(hash)) return;
 
     if (!name || !definitionIndex.has(name)) {
@@ -177,6 +188,58 @@ export function createDefinitionUploader(deps: DefinitionUploaderDeps): Definiti
       return;
     }
 
+    // Compute hash from CURRENT file content, not from the event's hash.
+    // This detects when a skill/agent file has been modified since the event.
+    const currentHash = computeHash(content);
+
+    // If the current content was already uploaded (possibly under a different
+    // event hash), skip — no need to re-upload identical content.
+    if (uploadedHashes.has(currentHash)) {
+      uploadedHashes.add(hash); // Also mark the event hash as "covered"
+      return;
+    }
+
+    const payload: DefinitionPayload = {
+      hash: currentHash,
+      name,
+      type: entry.type,
+      content,
+      path: entry.path,
+    };
+
+    try {
+      await putDefinition(payload);
+      uploadedHashes.add(currentHash);
+      uploadedHashes.add(hash); // Mark event hash as covered too
+    } catch {
+      // Neither hash cached — allows retry on next event
+      log({
+        service: 'opencode-collector',
+        level: 'error',
+        message: `Failed to upload definition: ${entry.path}`,
+      });
+    }
+  }
+
+  /**
+   * Upload a definition by entity name. Looks up the file in the index,
+   * reads content, computes hash, and uploads if not already cached.
+   * Used for automatic skill/agent detection in events.
+   */
+  async function uploadByName(name: string, type: 'skill' | 'agent'): Promise<void> {
+    if (!definitionIndex.has(name)) return;
+
+    const entry = definitionIndex.get(name)!;
+    let content: string;
+    try {
+      content = readFile(entry.path);
+    } catch {
+      return;
+    }
+
+    const hash = computeHash(content);
+    if (uploadedHashes.has(hash)) return;
+
     const payload: DefinitionPayload = {
       hash,
       name,
@@ -189,7 +252,6 @@ export function createDefinitionUploader(deps: DefinitionUploaderDeps): Definiti
       await putDefinition(payload);
       uploadedHashes.add(hash);
     } catch {
-      // Hash NOT cached — allows retry on next event
       log({
         service: 'opencode-collector',
         level: 'error',
@@ -198,5 +260,13 @@ export function createDefinitionUploader(deps: DefinitionUploaderDeps): Definiti
     }
   }
 
-  return { buildIndex, scanDefinitions, ensureDefinition, uploadedHashes };
+  /**
+   * Clear the uploaded-hashes cache. Call when definitions may have changed
+   * on disk (e.g. after a file-watch event or periodic refresh).
+   */
+  function clearCache(): void {
+    uploadedHashes.clear();
+  }
+
+  return { buildIndex, scanDefinitions, ensureDefinition, uploadByName, clearCache, uploadedHashes };
 }
