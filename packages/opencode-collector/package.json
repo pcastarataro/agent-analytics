@@ -4,6 +4,10 @@
   "private": true,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "build:plugin": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@agent-analytics/event-schema": "*",
     "@agent-analytics/shared": "*",

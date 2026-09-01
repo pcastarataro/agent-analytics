@@ -3,16 +3,24 @@
 /**
  * Agent Analytics Plugin Installer
  *
- * Installs the analytics plugin into an OpenCode project.
+ * Installs the analytics plugin globally into OpenCode's config directory.
  *
  * Usage:
- *   npx @agent-analytics/installer [target-dir]
+ *   npx @agent-analytics/installer [options]
  *
- * If target-dir is not specified, uses the current working directory.
+ * Options:
+ *   --url <url>    API endpoint URL (default: http://localhost:3000)
+ *   --user <id>    User ID for analytics tracking (default: anonymous)
+ *   --api-key <k>  API key for authentication (optional)
+ *   --help, -h     Show this help message
+ *
+ * Installs to ~/.config/opencode/plugins/analytics.mjs
+ * Creates ~/.config/opencode/analytics.json
  */
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync, cpSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, cpSync, chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,167 +30,115 @@ const green = (s) => `\x1b[32m${s}\x1b[0m`;
 const yellow = (s) => `\x1b[33m${s}\x1b[0m`;
 const cyan = (s) => `\x1b[36m${s}\x1b[0m`;
 const bold = (s) => `\x1b[1m${s}\x1b[0m`;
+const dim = (s) => `\x1b[2m${s}\x1b[0m`;
 
-function main() {
-  const targetDir = process.argv[2] || process.cwd();
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const parsed = { url: 'http://localhost:3000', userId: 'anonymous', apiKey: null };
 
-  console.log(bold('\n🔧 Agent Analytics Plugin Installer\n'));
-  console.log(`Target directory: ${cyan(targetDir)}\n`);
-
-  // Resolve .opencode directory
-  const openCodeDir = join(targetDir, '.opencode');
-  const pluginsDir = join(openCodeDir, 'plugins');
-  const pluginFile = join(pluginsDir, 'analytics.ts');
-  const configFile = join(openCodeDir, 'analytics.json');
-
-  // Ensure .opencode/plugins exists
-  if (!existsSync(pluginsDir)) {
-    mkdirSync(pluginsDir, { recursive: true });
-    console.log(green('✓ Created .opencode/plugins/'));
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--help' || arg === '-h') {
+      printHelp();
+      process.exit(0);
+    } else if (arg === '--url' && args[i + 1]) {
+      parsed.url = args[++i];
+    } else if (arg === '--user' && args[i + 1]) {
+      parsed.userId = args[++i];
+    } else if (arg === '--api-key' && args[i + 1]) {
+      parsed.apiKey = args[++i];
+    }
   }
 
-  // Copy plugin file
-  const pluginSource = join(__dirname, '..', '..', '.opencode', 'plugins', 'analytics.ts');
-  if (existsSync(pluginSource)) {
-    cpSync(pluginSource, pluginFile, { recursive: true });
-    console.log(green('✓ Installed analytics plugin → .opencode/plugins/analytics.ts'));
-  } else {
-    // Fallback: write the plugin inline
-    writeFileSync(pluginFile, PLUGIN_CONTENT);
-    console.log(green('✓ Installed analytics plugin → .opencode/plugins/analytics.ts'));
+  return parsed;
+}
+
+function printHelp() {
+  console.log(bold('\n🔧 Agent Analytics Plugin Installer\n'));
+  console.log('Usage:');
+  console.log(`  ${cyan('npx @agent-analytics/installer')} ${dim('[options]')}\n`);
+  console.log('Options:');
+  console.log(`  ${cyan('--url <url>')}      API endpoint URL (default: http://localhost:3000)`);
+  console.log(`  ${cyan('--user <id>')}      User ID for analytics tracking (default: anonymous)`);
+  console.log(`  ${cyan('--api-key <key>')}  API key for authentication (optional)`);
+  console.log(`  ${cyan('--help, -h')}       Show this help message\n`);
+  console.log('Examples:');
+  console.log(`  ${cyan('npx @agent-analytics/installer')}`);
+  console.log(`  ${cyan('npx @agent-analytics/installer --url https://api.example.com --user john')}`);
+  console.log(`  ${cyan('npx @agent-analytics/installer --user pablo --api-key abc123')}\n`);
+}
+
+function main() {
+  const config = parseArgs(process.argv);
+
+  console.log(bold('\n🔧 Agent Analytics Plugin Installer\n'));
+
+  // Global OpenCode config directory
+  const openCodeDir = join(homedir(), '.config', 'opencode');
+  const pluginsDir = join(openCodeDir, 'plugins');
+  const pluginFile = join(pluginsDir, 'analytics.mjs');
+  const configFile = join(openCodeDir, 'analytics.json');
+
+  console.log(`Installing to: ${cyan(openCodeDir)}\n`);
+
+  // Ensure ~/.config/opencode/plugins exists
+  if (!existsSync(pluginsDir)) {
+    mkdirSync(pluginsDir, { recursive: true });
+    console.log(green('✓ Created ~/.config/opencode/plugins/'));
+  }
+
+  // Copy the pre-built bundle from the installer package
+  const pluginSource = join(__dirname, '..', 'dist', 'plugin.mjs');
+
+  if (!existsSync(pluginSource)) {
+    console.log(yellow('⚠ Plugin bundle not found at: ' + pluginSource));
+    console.log(yellow('  Run "pnpm run build" in the installer package first.'));
+    process.exit(1);
+  }
+
+  try {
+    cpSync(pluginSource, pluginFile);
+    console.log(green('✓ Installed analytics plugin → ~/.config/opencode/plugins/analytics.mjs'));
+  } catch (err) {
+    console.error(yellow('✗ Failed to copy plugin: ' + err.message));
+    process.exit(1);
+  }
+
+  // Make plugin readable (some OpenCode versions may need this)
+  try {
+    chmodSync(pluginFile, 0o644);
+  } catch {
+    // Ignore chmod errors on Windows
   }
 
   // Create or update analytics.json
   if (existsSync(configFile)) {
-    console.log(yellow('⚠ .opencode/analytics.json already exists — skipping (edit manually if needed)'));
+    // Update existing config with provided values
+    try {
+      const existing = JSON.parse(readFileSync(configFile, 'utf-8'));
+      const collector = existing.collector || {};
+      if (config.url) collector.url = config.url;
+      if (config.userId) collector.userId = config.userId;
+      if (config.apiKey) collector.apiKey = config.apiKey;
+      existing.collector = collector;
+      writeFileSync(configFile, JSON.stringify(existing, null, 2) + '\n');
+      console.log(green('✓ Updated ~/.config/opencode/analytics.json'));
+    } catch {
+      console.log(yellow('⚠ Could not update config — edit ~/.config/opencode/analytics.json manually'));
+    }
   } else {
-    const config = {
-      collector: {
-        url: 'http://localhost:3000',
-        userId: 'anonymous',
-      },
-    };
-    writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-    console.log(green('✓ Created .opencode/analytics.json'));
+    const cfg = { collector: { url: config.url, userId: config.userId } };
+    if (config.apiKey) cfg.collector.apiKey = config.apiKey;
+    writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
+    console.log(green('✓ Created ~/.config/opencode/analytics.json'));
   }
 
-  // Print instructions
+  // Print summary
   console.log(bold('\n─── Setup Complete ───\n'));
-  console.log('Next steps:\n');
-  console.log(`  1. Start the API server:`);
-  console.log(`     ${cyan('docker compose up -d')}\n`);
-  console.log(`  2. Set your user ID in .opencode/analytics.json:`);
-  console.log(`     ${cyan('{ "collector": { "url": "http://localhost:3000", "userId": "your-name" } }')}\n`);
-  console.log(`  3. (Optional) Set environment variables:`);
-  console.log(`     ${cyan('export OPENCODE_ANALYTICS_URL=http://localhost:3000')}`);
-  console.log(`     ${cyan('export OPENCODE_ANALYTICS_USER=your-name')}\n`);
-  console.log(`  4. Start using OpenCode — events are collected automatically.\n`);
+  console.log(`  ${dim('URL:')}   ${cyan(config.url)}`);
+  console.log(`  ${dim('User:')}  ${cyan(config.userId)}`);
+  if (config.apiKey) console.log(`  ${dim('Key:')}   ${cyan('••••' + config.apiKey.slice(-4))}`);
+  console.log(`\n  Restart OpenCode to start collecting events.\n`);
 }
-
-// Fallback plugin content (in case source file isn't found relative to installer)
-const PLUGIN_CONTENT = `/**
- * OpenCode plugin adapter for @agent-analytics/opencode-collector.
- *
- * Bridges the collector's internal hook-based API to the current OpenCode Plugin interface:
- * - Uses \`event\` hook for session.created, session.idle, and assistant message.updated
- * - Uses \`chat.message\` hook for user messages (more reliable than event hook)
- * - Uses \`tool.execute.before\` / \`tool.execute.after\` for tool hooks
- */
-import { createPlugin as createCollectorHooks } from '@agent-analytics/opencode-collector';
-
-interface PluginInput {
-  client: {
-    app: {
-      log: (entry: {
-        body: { service: string; level: string; message: string; hooks?: string[] };
-      }) => Promise<void>;
-    };
-    session: { messages: (args: { id: string }) => Promise<unknown[]> };
-  };
-  project: unknown;
-  $: unknown;
-  directory: string;
-  worktree: string;
-}
-
-export const AgentAnalyticsPlugin = async (input: PluginInput) => {
-  const hooks = await createCollectorHooks({
-    client: input.client,
-    project: input.project,
-    $: input.$,
-    directory: input.directory,
-    worktree: input.worktree,
-  });
-
-  const collectorSessionCreated = hooks['session.created'] as ((input: unknown) => void) | undefined;
-  const collectorMessageUpdated = hooks['message.updated'] as ((input: unknown) => void) | undefined;
-  const collectorToolBefore = hooks['tool.execute.before'] as ((input: unknown) => void) | undefined;
-  const collectorToolAfter = hooks['tool.execute.after'] as ((input: unknown) => void) | undefined;
-  const collectorSessionIdle = hooks['session.idle'] as ((input: unknown) => Promise<void>) | undefined;
-
-  return {
-    async event({ event }: { event: { type: string; properties: Record<string, unknown> } }) {
-      const type = event.type;
-
-      if (type === 'session.created') {
-        collectorSessionCreated?.({ session: event.properties.info });
-      } else if (type === 'message.updated') {
-        const info = event.properties.info as Record<string, unknown>;
-        if (info.role === 'assistant') {
-          collectorMessageUpdated?.({
-            type: 'assistant',
-            sessionID: info.sessionID,
-            message: info,
-          });
-        }
-      } else if (type === 'session.idle') {
-        await collectorSessionIdle?.({ sessionID: event.properties.sessionID });
-      }
-    },
-
-    async 'chat.message'(
-      input: { sessionID: string; agent?: string; model?: { providerID: string; modelID: string } },
-      output: { message: { text: string; [key: string]: unknown }; parts: unknown[] },
-    ) {
-      collectorMessageUpdated?.({
-        type: 'user',
-        sessionID: input.sessionID,
-        agent: input.agent,
-        message: { text: output.message.text },
-      });
-    },
-
-    async 'tool.execute.before'(
-      input: { tool: string; sessionID: string; callID: string },
-      output: { args: unknown },
-    ) {
-      collectorToolBefore?.({
-        input: {
-          callID: input.callID,
-          tool: input.tool,
-          args: output.args as Record<string, unknown> | undefined,
-          sessionID: input.sessionID,
-        },
-      });
-    },
-
-    async 'tool.execute.after'(
-      input: { tool: string; sessionID: string; callID: string; args: unknown },
-      output: { title: string; output: string; metadata: Record<string, unknown> },
-    ) {
-      const hasError = output.metadata?.error === true || output.metadata?.isError === true;
-      collectorToolAfter?.({
-        input: {
-          callID: input.callID,
-          sessionID: input.sessionID,
-        },
-        result: { error: hasError },
-      });
-    },
-
-    dispose: hooks.dispose,
-  };
-};
-`;
 
 main();

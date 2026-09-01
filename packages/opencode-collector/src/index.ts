@@ -40,13 +40,20 @@ function resolveConfig(directory: string): CollectorConfig {
   env[ENV_DISABLED] = process.env[ENV_DISABLED];
 
   let fileConfig: Record<string, unknown> | undefined;
-  const configPath = join(directory, '.opencode', 'analytics.json');
-  try {
-    const raw = readFileSync(configPath, 'utf-8');
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    fileConfig = parsed.collector as Record<string, unknown> | undefined;
-  } catch (e) {
-    // File absent or malformed — file layer stays undefined
+
+  // Try project-local config first, then global config
+  const localConfigPath = join(directory, '.opencode', 'analytics.json');
+  const globalConfigPath = join(homedir(), '.config', 'opencode', 'analytics.json');
+
+  for (const configPath of [localConfigPath, globalConfigPath]) {
+    try {
+      const raw = readFileSync(configPath, 'utf-8');
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      fileConfig = parsed.collector as Record<string, unknown> | undefined;
+      if (fileConfig) break;
+    } catch {
+      // File absent or malformed — try next path
+    }
   }
 
   const merged: Record<string, unknown> = {};

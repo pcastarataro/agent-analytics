@@ -1,14 +1,19 @@
 {
   "name": "@agent-analytics/installer",
   "version": "0.1.0",
-  "description": "Install the Agent Analytics plugin into an OpenCode project",
+  "description": "Install the Agent Analytics plugin globally into OpenCode",
   "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "agent-analytics-install": "./src/install.js"
   },
+  "scripts": {
+    "build": "cp ../opencode-collector/dist/plugin.mjs ./dist/plugin.mjs",
+    "prepublishOnly": "npm run build"
+  },
   "files": [
-    "src/"
+    "src/",
+    "dist/"
   ],
   "engines": {
     "node": ">=20"
