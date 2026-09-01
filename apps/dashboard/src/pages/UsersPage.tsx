@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import type { UserStat } from '../api/types';
 import { SortableTable, Column } from '../components/SortableTable';
@@ -39,7 +40,18 @@ function formatCost(val: unknown): string {
 }
 
 const columns: Column<UserStatRow>[] = [
-  { key: 'userId', label: 'User' },
+  {
+    key: 'userId',
+    label: 'User',
+    render: (row) => (
+      <Link
+        to={`/users/${encodeURIComponent(row.userId)}`}
+        className="text-blue-600 hover:underline"
+      >
+        {row.userId}
+      </Link>
+    ),
+  },
   { key: 'eventCount', label: 'Events', sortable: true },
   { key: 'distinctAgents', label: 'Agents', sortable: true },
   { key: 'distinctSkills', label: 'Skills', sortable: true },

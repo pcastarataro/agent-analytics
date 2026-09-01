@@ -187,8 +187,10 @@ export interface UserDetail {
   totalCachedTokens: number;
   firstSeenAt: string;
   lastSeenAt: string;
-  agentsUsed: Array<{ name: string; count: number }>;
+  agentsUsed: Array<{ name: string; count: number; totalCost: number }>;
+  skillsUsed: Array<{ name: string; count: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];
 }
 

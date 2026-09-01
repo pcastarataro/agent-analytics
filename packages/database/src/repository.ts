@@ -947,11 +947,33 @@ export function createDrizzleRepository(
         .select({
           name: sql<string>`${usageEvents.agentName}`,
           count: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
         .where(where)
         .groupBy(usageEvents.agentName)
         .orderBy(sql`count(*) desc`);
+
+      const skillsUsedRows = await db
+        .select({
+          name: sql<string>`${usageEvents.skill}::jsonb->>'name'`,
+          count: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`)
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
+        .orderBy(sql`count(*) desc`);
+
+      const costByDateRows = await db
+        .select({
+          date: dateColumn,
+          cost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
 
       const recentRows = await db
         .select()
@@ -969,8 +991,10 @@ export function createDrizzleRepository(
         totalCachedTokens: Number(stats.totalCachedTokens),
         firstSeenAt: stats.firstSeenAt instanceof Date ? stats.firstSeenAt : new Date(stats.firstSeenAt),
         lastSeenAt: stats.lastSeenAt instanceof Date ? stats.lastSeenAt : new Date(stats.lastSeenAt),
-        agentsUsed: agentsUsedRows.map((r) => ({ name: r.name ?? 'unknown', count: r.count })),
+        agentsUsed: agentsUsedRows.map((r) => ({ name: r.name ?? 'unknown', count: r.count, totalCost: Number(r.totalCost) })),
+        skillsUsed: skillsUsedRows.map((r) => ({ name: r.name, count: r.count, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),
       };
     },
