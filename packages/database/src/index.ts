@@ -20,6 +20,10 @@ export {
   type SkillStat,
   type UserStat,
   type Definition,
+  type ProjectStat,
+  type ProjectDetail,
+  type BranchStat,
+  type BranchDetail,
 } from './repository';
 
 export const DATABASE_PACKAGE_NAME = '@agent-analytics/database';

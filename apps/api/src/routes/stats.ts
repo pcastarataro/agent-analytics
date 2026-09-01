@@ -158,5 +158,79 @@ export function createStatsRoutes(repository: EventRepository): Router {
     })();
   });
 
+  router.get('/projects', (req, res, next) => {
+    void (async () => {
+      try {
+        const { from, to } = req.query as Record<string, string | undefined>;
+
+        const dateFilters: DateFilters = {};
+        if (from !== undefined) dateFilters.from = new Date(from);
+        if (to !== undefined) dateFilters.to = new Date(to);
+
+        const hasFilters = Object.keys(dateFilters).length > 0;
+        const filters = hasFilters ? dateFilters : undefined;
+
+        const data = await repository.getProjectStats(filters);
+
+        res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    })();
+  });
+
+  router.get('/projects/:name', (req, res, next) => {
+    void (async () => {
+      try {
+        const { name } = req.params;
+        const detail = await repository.getProjectByName(name);
+        if (!detail) {
+          res.status(404).json({ error: 'Project not found' });
+          return;
+        }
+        res.json(detail);
+      } catch (err) {
+        next(err);
+      }
+    })();
+  });
+
+  router.get('/branches', (req, res, next) => {
+    void (async () => {
+      try {
+        const { from, to } = req.query as Record<string, string | undefined>;
+
+        const dateFilters: DateFilters = {};
+        if (from !== undefined) dateFilters.from = new Date(from);
+        if (to !== undefined) dateFilters.to = new Date(to);
+
+        const hasFilters = Object.keys(dateFilters).length > 0;
+        const filters = hasFilters ? dateFilters : undefined;
+
+        const data = await repository.getBranchStats(filters);
+
+        res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    })();
+  });
+
+  router.get('/branches/:name', (req, res, next) => {
+    void (async () => {
+      try {
+        const { name } = req.params;
+        const detail = await repository.getBranchByName(name);
+        if (!detail) {
+          res.status(404).json({ error: 'Branch not found' });
+          return;
+        }
+        res.json(detail);
+      } catch (err) {
+        next(err);
+      }
+    })();
+  });
+
   return router;
 }

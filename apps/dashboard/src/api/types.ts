@@ -215,3 +215,66 @@ export interface SkillVersion {
   avgCost: number;
   totalCost: number;
 }
+
+export interface ProjectStat {
+  projectName: string;
+  eventCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  avgCost: number;
+  totalCost: number;
+  distinctBranches: number;
+  distinctAgents: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface ProjectDetail {
+  projectName: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  distinctBranches: number;
+  distinctAgents: number;
+  byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
+  byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  recentEvents: UsageEventDTO[];
+}
+
+export interface BranchStat {
+  branch: string;
+  eventCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  avgCost: number;
+  totalCost: number;
+  distinctProjects: number;
+  distinctAgents: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface BranchDetail {
+  branch: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  distinctProjects: number;
+  distinctAgents: number;
+  byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
+  recentEvents: UsageEventDTO[];
+}

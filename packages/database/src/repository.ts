@@ -172,7 +172,9 @@ export interface UserDetail {
   firstSeenAt: Date;
   lastSeenAt: Date;
   agentsUsed: Array<{ name: string; count: number }>;
+  skillsUsed: Array<{ name: string; count: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEvent[];
 }
 
@@ -196,6 +198,69 @@ export interface SkillVersion {
   successRate: number;
   avgCost: number;
   totalCost: number;
+}
+
+export interface ProjectStat {
+  projectName: string;
+  eventCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  avgCost: number;
+  totalCost: number;
+  distinctBranches: number;
+  distinctAgents: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+}
+
+export interface ProjectDetail {
+  projectName: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  distinctBranches: number;
+  distinctAgents: number;
+  byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
+  byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  recentEvents: UsageEvent[];
+}
+
+export interface BranchStat {
+  branch: string;
+  eventCount: number;
+  successRate: number;
+  avgDurationMs: number;
+  avgCost: number;
+  totalCost: number;
+  distinctProjects: number;
+  distinctAgents: number;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+}
+
+export interface BranchDetail {
+  branch: string;
+  totalEvents: number;
+  successRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  avgCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCachedTokens: number;
+  distinctProjects: number;
+  distinctAgents: number;
+  byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  eventsOverTime: Array<{ date: string; count: number }>;
+  costByDate: Array<{ date: string; cost: number }>;
+  recentEvents: UsageEvent[];
 }
 
 export interface EventRepository {
@@ -225,6 +290,10 @@ export interface EventRepository {
   getAllDefinitions(): Promise<Definition[]>;
   getSkillVersions(filters?: DateFilters): Promise<SkillVersion[]>;
   getUsedEntityNames(): Promise<{ skills: string[]; agents: string[] }>;
+  getProjectStats(filters?: DateFilters): Promise<ProjectStat[]>;
+  getProjectByName(projectName: string): Promise<ProjectDetail | null>;
+  getBranchStats(filters?: DateFilters): Promise<BranchStat[]>;
+  getBranchByName(branch: string): Promise<BranchDetail | null>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -1141,6 +1210,259 @@ export function createDrizzleRepository(
       return {
         skills: skillRows.map((r) => r.name).filter(Boolean),
         agents: agentRows.map((r) => r.name).filter(Boolean),
+      };
+    },
+
+    async getProjectStats(filters?: DateFilters): Promise<ProjectStat[]> {
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          projectName: usageEvents.projectName,
+          eventCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          distinctBranches: sql<number>`count(distinct ${usageEvents.projectBranch})::int`,
+          distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
+          firstSeenAt: sql<Date>`min(${usageEvents.timestamp})`,
+          lastSeenAt: sql<Date>`max(${usageEvents.timestamp})`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(usageEvents.projectName)
+        .orderBy(sql`count(*) desc`);
+
+      return rows.map((row) => ({
+        projectName: row.projectName ?? 'unknown',
+        eventCount: row.eventCount,
+        successRate: Number(row.successRate),
+        avgDurationMs: Number(row.avgDurationMs),
+        avgCost: Number(row.avgCost),
+        totalCost: Number(row.totalCost),
+        distinctBranches: row.distinctBranches,
+        distinctAgents: row.distinctAgents,
+        firstSeenAt: row.firstSeenAt instanceof Date ? row.firstSeenAt : new Date(row.firstSeenAt),
+        lastSeenAt: row.lastSeenAt instanceof Date ? row.lastSeenAt : new Date(row.lastSeenAt),
+      }));
+    },
+
+    async getProjectByName(projectName: string): Promise<ProjectDetail | null> {
+      const where = eq(usageEvents.projectName, projectName);
+
+      const statsRow = await db
+        .select({
+          totalEvents: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalInputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint), 0)::bigint`,
+          totalOutputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+          totalCachedTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cachedTokens')::bigint), 0)::bigint`,
+          distinctBranches: sql<number>`count(distinct ${usageEvents.projectBranch})::int`,
+          distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
+        })
+        .from(usageEvents)
+        .where(where);
+
+      const stats = statsRow[0];
+      if (!stats || stats.totalEvents === 0) return null;
+
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const byBranchRows = await db
+        .select({
+          branch: usageEvents.projectBranch,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.projectBranch)
+        .orderBy(sql`count(*) desc`);
+
+      const byAgentRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.agentName}, 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.agentName)
+        .orderBy(sql`count(*) desc`);
+
+      const eventsOverTimeRows = await db
+        .select({ date: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const recentRows = await db
+        .select()
+        .from(usageEvents)
+        .where(where)
+        .orderBy(usageEvents.timestamp)
+        .limit(20);
+
+      return {
+        projectName,
+        totalEvents: stats.totalEvents,
+        successRate: Number(stats.successRate),
+        avgDurationMs: Number(stats.avgDurationMs),
+        totalCost: Number(stats.totalCost),
+        avgCost: Number(stats.avgCost),
+        totalInputTokens: Number(stats.totalInputTokens),
+        totalOutputTokens: Number(stats.totalOutputTokens),
+        totalCachedTokens: Number(stats.totalCachedTokens),
+        distinctBranches: stats.distinctBranches,
+        distinctAgents: stats.distinctAgents,
+        byBranch: byBranchRows.map((r) => ({ branch: r.branch ?? 'unknown', eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        recentEvents: recentRows.map(toEvent),
+      };
+    },
+
+    async getBranchStats(filters?: DateFilters): Promise<BranchStat[]> {
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          branch: usageEvents.projectBranch,
+          eventCount: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          distinctProjects: sql<number>`count(distinct ${usageEvents.projectName})::int`,
+          distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
+          firstSeenAt: sql<Date>`min(${usageEvents.timestamp})`,
+          lastSeenAt: sql<Date>`max(${usageEvents.timestamp})`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(usageEvents.projectBranch)
+        .orderBy(sql`count(*) desc`);
+
+      return rows.map((row) => ({
+        branch: row.branch ?? 'unknown',
+        eventCount: row.eventCount,
+        successRate: Number(row.successRate),
+        avgDurationMs: Number(row.avgDurationMs),
+        avgCost: Number(row.avgCost),
+        totalCost: Number(row.totalCost),
+        distinctProjects: row.distinctProjects,
+        distinctAgents: row.distinctAgents,
+        firstSeenAt: row.firstSeenAt instanceof Date ? row.firstSeenAt : new Date(row.firstSeenAt),
+        lastSeenAt: row.lastSeenAt instanceof Date ? row.lastSeenAt : new Date(row.lastSeenAt),
+      }));
+    },
+
+    async getBranchByName(branch: string): Promise<BranchDetail | null> {
+      const where = eq(usageEvents.projectBranch, branch);
+
+      const statsRow = await db
+        .select({
+          totalEvents: sql<number>`count(*)::int`,
+          successRate: sql<number>`coalesce(count(*) filter (where ${usageEvents.status} = 'success') * 100.0 / nullif(count(*), 0), 0)`,
+          avgDurationMs: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'durationMs')::bigint), 0)::bigint`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          avgCost: sql<number>`coalesce(avg((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+          totalInputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'inputTokens')::bigint), 0)::bigint`,
+          totalOutputTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'outputTokens')::bigint), 0)::bigint`,
+          totalCachedTokens: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cachedTokens')::bigint), 0)::bigint`,
+          distinctProjects: sql<number>`count(distinct ${usageEvents.projectName})::int`,
+          distinctAgents: sql<number>`count(distinct ${usageEvents.agentName})::int`,
+        })
+        .from(usageEvents)
+        .where(where);
+
+      const stats = statsRow[0];
+      if (!stats || stats.totalEvents === 0) return null;
+
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const byProjectRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.projectName}, 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.projectName)
+        .orderBy(sql`count(*) desc`);
+
+      const byAgentRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.agentName}, 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.agentName)
+        .orderBy(sql`count(*) desc`);
+
+      const eventsOverTimeRows = await db
+        .select({ date: dateColumn, count: sql<number>`count(*)::int` })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const costByDateRows = await db
+        .select({
+          date: dateColumn,
+          cost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      const recentRows = await db
+        .select()
+        .from(usageEvents)
+        .where(where)
+        .orderBy(usageEvents.timestamp)
+        .limit(20);
+
+      return {
+        branch,
+        totalEvents: stats.totalEvents,
+        successRate: Number(stats.successRate),
+        avgDurationMs: Number(stats.avgDurationMs),
+        totalCost: Number(stats.totalCost),
+        avgCost: Number(stats.avgCost),
+        totalInputTokens: Number(stats.totalInputTokens),
+        totalOutputTokens: Number(stats.totalOutputTokens),
+        totalCachedTokens: Number(stats.totalCachedTokens),
+        distinctProjects: stats.distinctProjects,
+        distinctAgents: stats.distinctAgents,
+        byProject: byProjectRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
+        costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
+        recentEvents: recentRows.map(toEvent),
       };
     },
   };

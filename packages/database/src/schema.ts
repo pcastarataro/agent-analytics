@@ -20,6 +20,12 @@ export const usageEvents = pgTable(
     timestamp: timestamp('timestamp', { withTimezone: true }),
     status: text('status'),
     contentHash: text('content_hash'),
+    projectName: text('project_name').generatedAlwaysAs(
+      `coalesce(nullif("project"::jsonb->>'name', ''), 'unknown')`,
+    ),
+    projectBranch: text('project_branch').generatedAlwaysAs(
+      `coalesce(nullif("project"::jsonb->>'branch', ''), 'unknown')`,
+    ),
   },
   (table) => [
     index('idx_agent_name').on(table.agentName),
@@ -28,6 +34,8 @@ export const usageEvents = pgTable(
     index('idx_timestamp').on(table.timestamp),
     index('idx_status').on(table.status),
     uniqueIndex('idx_content_hash_unique').on(table.contentHash),
+    index('idx_project_name').on(table.projectName),
+    index('idx_project_branch').on(table.projectBranch),
   ],
 );
 

@@ -95,6 +95,13 @@ function createMockRepository(state: MockState): EventRepository {
     getDefinitionByHash: jest.fn().mockResolvedValue(null),
     upsertDefinition: jest.fn().mockResolvedValue(undefined),
     getDefinitionsByEntity: jest.fn().mockResolvedValue([]),
+    getAllDefinitions: jest.fn().mockResolvedValue([]),
+    getSkillVersions: jest.fn().mockResolvedValue([]),
+    getUsedEntityNames: jest.fn().mockResolvedValue({ skills: [], agents: [] }),
+    getProjectStats: jest.fn().mockResolvedValue([]),
+    getProjectByName: jest.fn().mockResolvedValue(null),
+    getBranchStats: jest.fn().mockResolvedValue([]),
+    getBranchByName: jest.fn().mockResolvedValue(null),
   };
 }
 

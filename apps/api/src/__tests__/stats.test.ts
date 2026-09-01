@@ -32,6 +32,13 @@ function createMockRepository(): EventRepository {
     getDefinitionByHash: jest.fn().mockResolvedValue(null),
     upsertDefinition: jest.fn().mockResolvedValue(undefined),
     getDefinitionsByEntity: jest.fn().mockResolvedValue([]),
+    getAllDefinitions: jest.fn().mockResolvedValue([]),
+    getSkillVersions: jest.fn().mockResolvedValue([]),
+    getUsedEntityNames: jest.fn().mockResolvedValue({ skills: [], agents: [] }),
+    getProjectStats: jest.fn().mockResolvedValue([]),
+    getProjectByName: jest.fn().mockResolvedValue(null),
+    getBranchStats: jest.fn().mockResolvedValue([]),
+    getBranchByName: jest.fn().mockResolvedValue(null),
   };
 }
 
@@ -344,5 +351,255 @@ describe('GET /v1/stats/agents/:name', () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Agent not found');
+  });
+});
+
+describe('GET /v1/stats/projects', () => {
+  let app: ReturnType<typeof createApp>;
+  let repo: EventRepository;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+    const config = loadConfig({
+      port: 0,
+      databaseUrl: 'postgresql://localhost:5432/test',
+      corsOrigins: ['http://localhost:5173'],
+    });
+    app = createApp(config, repo);
+  });
+
+  it('returns project stats with correct shape', async () => {
+    const { default: request } = await import('supertest');
+
+    const mockResult = [
+      {
+        projectName: 'agent-analytics',
+        eventCount: 100,
+        successRate: 85,
+        avgDurationMs: 500,
+        avgCost: 0.1,
+        totalCost: 10,
+        distinctBranches: 3,
+        distinctAgents: 2,
+        firstSeenAt: new Date('2026-01-01'),
+        lastSeenAt: new Date('2026-01-15'),
+      },
+    ];
+
+    (repo.getProjectStats as jest.Mock).mockResolvedValueOnce(mockResult);
+
+    const res = await request(app).get('/v1/stats/projects');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].projectName).toBe('agent-analytics');
+    expect(res.body.data[0].eventCount).toBe(100);
+  });
+
+  it('passes date range filters to repository', async () => {
+    const { default: request } = await import('supertest');
+
+    const res = await request(app).get(
+      '/v1/stats/projects?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z',
+    );
+
+    expect(res.status).toBe(200);
+    expect(repo.getProjectStats).toHaveBeenCalledWith({
+      from: new Date('2026-03-01T00:00:00Z'),
+      to: new Date('2026-03-31T23:59:59Z'),
+    });
+  });
+
+  it('returns empty array when no events', async () => {
+    const { default: request } = await import('supertest');
+
+    (repo.getProjectStats as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app).get('/v1/stats/projects');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+});
+
+describe('GET /v1/stats/projects/:name', () => {
+  let app: ReturnType<typeof createApp>;
+  let repo: EventRepository;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+    const config = loadConfig({
+      port: 0,
+      databaseUrl: 'postgresql://localhost:5432/test',
+      corsOrigins: ['http://localhost:5173'],
+    });
+    app = createApp(config, repo);
+  });
+
+  it('returns project detail', async () => {
+    const { default: request } = await import('supertest');
+
+    const mockDetail = {
+      projectName: 'agent-analytics',
+      totalEvents: 100,
+      successRate: 85,
+      avgDurationMs: 500,
+      totalCost: 10,
+      avgCost: 0.1,
+      totalInputTokens: 5000,
+      totalOutputTokens: 2500,
+      totalCachedTokens: 500,
+      distinctBranches: 3,
+      distinctAgents: 2,
+      byBranch: [{ branch: 'main', eventCount: 70, totalCost: 7 }],
+      byAgent: [{ name: 'test-agent', eventCount: 50, totalCost: 5 }],
+      eventsOverTime: [{ date: '2026-01-15', count: 100 }],
+      recentEvents: [],
+    };
+
+    (repo.getProjectByName as jest.Mock).mockResolvedValueOnce(mockDetail);
+
+    const res = await request(app).get('/v1/stats/projects/agent-analytics');
+
+    expect(res.status).toBe(200);
+    expect(res.body.projectName).toBe('agent-analytics');
+    expect(res.body.totalEvents).toBe(100);
+  });
+
+  it('returns 404 for nonexistent project', async () => {
+    const { default: request } = await import('supertest');
+
+    (repo.getProjectByName as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app).get('/v1/stats/projects/nonexistent');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Project not found');
+  });
+});
+
+describe('GET /v1/stats/branches', () => {
+  let app: ReturnType<typeof createApp>;
+  let repo: EventRepository;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+    const config = loadConfig({
+      port: 0,
+      databaseUrl: 'postgresql://localhost:5432/test',
+      corsOrigins: ['http://localhost:5173'],
+    });
+    app = createApp(config, repo);
+  });
+
+  it('returns branch stats with correct shape', async () => {
+    const { default: request } = await import('supertest');
+
+    const mockResult = [
+      {
+        branch: 'main',
+        eventCount: 80,
+        successRate: 90,
+        avgDurationMs: 400,
+        avgCost: 0.08,
+        totalCost: 6.4,
+        distinctProjects: 2,
+        distinctAgents: 3,
+        firstSeenAt: new Date('2026-01-01'),
+        lastSeenAt: new Date('2026-01-15'),
+      },
+    ];
+
+    (repo.getBranchStats as jest.Mock).mockResolvedValueOnce(mockResult);
+
+    const res = await request(app).get('/v1/stats/branches');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0].branch).toBe('main');
+    expect(res.body.data[0].eventCount).toBe(80);
+  });
+
+  it('passes date range filters to repository', async () => {
+    const { default: request } = await import('supertest');
+
+    const res = await request(app).get(
+      '/v1/stats/branches?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z',
+    );
+
+    expect(res.status).toBe(200);
+    expect(repo.getBranchStats).toHaveBeenCalledWith({
+      from: new Date('2026-03-01T00:00:00Z'),
+      to: new Date('2026-03-31T23:59:59Z'),
+    });
+  });
+
+  it('returns empty array when no events', async () => {
+    const { default: request } = await import('supertest');
+
+    (repo.getBranchStats as jest.Mock).mockResolvedValueOnce([]);
+
+    const res = await request(app).get('/v1/stats/branches');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+  });
+});
+
+describe('GET /v1/stats/branches/:name', () => {
+  let app: ReturnType<typeof createApp>;
+  let repo: EventRepository;
+
+  beforeEach(() => {
+    repo = createMockRepository();
+    const config = loadConfig({
+      port: 0,
+      databaseUrl: 'postgresql://localhost:5432/test',
+      corsOrigins: ['http://localhost:5173'],
+    });
+    app = createApp(config, repo);
+  });
+
+  it('returns branch detail', async () => {
+    const { default: request } = await import('supertest');
+
+    const mockDetail = {
+      branch: 'main',
+      totalEvents: 80,
+      successRate: 90,
+      avgDurationMs: 400,
+      totalCost: 6.4,
+      avgCost: 0.08,
+      totalInputTokens: 4000,
+      totalOutputTokens: 2000,
+      totalCachedTokens: 400,
+      distinctProjects: 2,
+      distinctAgents: 3,
+      byProject: [{ name: 'agent-analytics', eventCount: 50, totalCost: 4 }],
+      byAgent: [{ name: 'test-agent', eventCount: 40, totalCost: 3.2 }],
+      eventsOverTime: [{ date: '2026-01-15', count: 80 }],
+      costByDate: [{ date: '2026-01-15', cost: 6.4 }],
+      recentEvents: [],
+    };
+
+    (repo.getBranchByName as jest.Mock).mockResolvedValueOnce(mockDetail);
+
+    const res = await request(app).get('/v1/stats/branches/main');
+
+    expect(res.status).toBe(200);
+    expect(res.body.branch).toBe('main');
+    expect(res.body.totalEvents).toBe(80);
+    expect(res.body.costByDate).toHaveLength(1);
+  });
+
+  it('returns 404 for nonexistent branch', async () => {
+    const { default: request } = await import('supertest');
+
+    (repo.getBranchByName as jest.Mock).mockResolvedValueOnce(null);
+
+    const res = await request(app).get('/v1/stats/branches/nonexistent');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('Branch not found');
   });
 });

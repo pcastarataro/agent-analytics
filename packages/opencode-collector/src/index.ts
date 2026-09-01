@@ -24,6 +24,7 @@ import { createEventBuffer, type EventBufferDeps } from './infra/event-buffer';
 import { createHttpClient, type HttpClientCounters } from './infra/http-client';
 import { createDefinitionUploader, type DefinitionUploader } from './infra/definition-uploader';
 import { withBoundary } from './infra/boundary';
+import { extractProjectName, getCachedBranch, createBranchCache } from './project-extraction';
 
 export const OPENCODE_COLLECTOR_PACKAGE_NAME = '@agent-analytics/opencode-collector';
 
@@ -117,6 +118,7 @@ export const createPlugin = async ({
   const edges: EdgeMap = new Map();
   const toolCalls = new Map<string, ToolCall>();
   const counters: HttpClientCounters = { dropped: 0, retried: 0 };
+  const branchCache = createBranchCache();
 
   const httpClient = createHttpClient(
     config,
@@ -141,52 +143,57 @@ export const createPlugin = async ({
   };
   const buffer = createEventBuffer(bufferDeps);
 
-  function enqueueEvent(fields: Record<string, unknown>): void {
-    const event: UsageEvent = {
-      id: generateId(),
-      actor: { userId: config.userId ?? 'anonymous' },
-      project: {},
-      session: {},
-      execution: { traceId: '' },
-      agent: { name: 'unknown' },
-      skill: { name: 'unknown' },
-      tool: {},
-      model: {},
-      metrics: {},
-      result: { status: 'success' },
-      timestamp: new Date().toISOString(),
-      ...fields,
-    } as UsageEvent;
+  function enqueueEvent(fields: Record<string, unknown>): Promise<void> {
+    const projectName = extractProjectName(directory);
+    const branchPromise = getCachedBranch(branchCache, directory);
 
-    // Lazy fallback: ensure unknown definition hashes are registered
-    const agentField = event.agent as Record<string, unknown> | undefined;
-    const skillField = event.skill as Record<string, unknown> | undefined;
-    const defHash = agentField?.definitionHash as string | undefined;
-    if (defHash && !uploader.uploadedHashes.has(defHash)) {
-      const name = (skillField?.name ?? agentField?.name) as string | undefined;
-      void uploader.ensureDefinition(defHash, name);
-    }
+    return branchPromise.then((branch) => {
+      const event: UsageEvent = {
+        id: generateId(),
+        actor: { userId: config.userId ?? 'anonymous' },
+        project: { name: projectName, branch },
+        session: {},
+        execution: { traceId: '' },
+        agent: { name: 'unknown' },
+        skill: { name: 'unknown' },
+        tool: {},
+        model: {},
+        metrics: {},
+        result: { status: 'success' },
+        timestamp: new Date().toISOString(),
+        ...fields,
+      } as UsageEvent;
 
-    // Auto-upload skill definitions when skill name is detected
-    const skillName = skillField?.name as string | undefined;
-    if (skillName && skillName !== 'unknown') {
-      void uploader.uploadByName(skillName, 'skill');
-    }
+      // Lazy fallback: ensure unknown definition hashes are registered
+      const agentField = event.agent as Record<string, unknown> | undefined;
+      const skillField = event.skill as Record<string, unknown> | undefined;
+      const defHash = agentField?.definitionHash as string | undefined;
+      if (defHash && !uploader.uploadedHashes.has(defHash)) {
+        const name = (skillField?.name ?? agentField?.name) as string | undefined;
+        void uploader.ensureDefinition(defHash, name);
+      }
 
-    const result = usageEventSchema.safeParse(event);
-    if (result.success) {
-      buffer.enqueue(result.data);
-    } else {
-      logFn({
-        service: 'opencode-collector',
-        level: 'warn',
-        message: `Invalid event dropped: ${result.error.message}`,
-      });
-      counters.dropped++;
-    }
+      // Auto-upload skill definitions when skill name is detected
+      const skillName = skillField?.name as string | undefined;
+      if (skillName && skillName !== 'unknown') {
+        void uploader.uploadByName(skillName, 'skill');
+      }
+
+      const result = usageEventSchema.safeParse(event);
+      if (result.success) {
+        buffer.enqueue(result.data);
+      } else {
+        logFn({
+          service: 'opencode-collector',
+          level: 'warn',
+          message: `Invalid event dropped: ${result.error.message}`,
+        });
+        counters.dropped++;
+      }
+    });
   }
 
-  function handleSessionCreated(input: unknown): void {
+  function handleSessionCreated(input: unknown): Promise<void> {
     const payload = input as { session: { id: string; parentID?: string } };
     logFn({
       service: 'opencode-collector',
@@ -194,7 +201,7 @@ export const createPlugin = async ({
       message: `HOOK session.created FULL: ${JSON.stringify(input).slice(0, 500)}`,
     });
     const ctx = mapSessionCreated(payload, executions, edges);
-    enqueueEvent({
+    return enqueueEvent({
       session: { id: ctx.sessionId },
       execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
       agent: {
@@ -205,7 +212,7 @@ export const createPlugin = async ({
     });
   }
 
-  function handleMessageUpdated(input: unknown): void {
+  function handleMessageUpdated(input: unknown): Promise<void> {
     const payload = input as {
       type: string;
       sessionID?: string;
@@ -216,11 +223,11 @@ export const createPlugin = async ({
       level: 'info',
       message: `HOOK message.updated FULL: ${JSON.stringify(input).slice(0, 500)}`,
     });
-    if (payload.type !== 'user' && payload.type !== 'assistant') return;
-    if (!payload.sessionID) return;
+    if (payload.type !== 'user' && payload.type !== 'assistant') return Promise.resolve();
+    if (!payload.sessionID) return Promise.resolve();
 
     const ctx = executions.get(payload.sessionID);
-    if (!ctx) return;
+    if (!ctx) return Promise.resolve();
 
     const fields =
       payload.type === 'user'
@@ -245,7 +252,7 @@ export const createPlugin = async ({
             );
           })();
 
-    enqueueEvent({
+    return enqueueEvent({
       session: { id: ctx.sessionId },
       execution: { traceId: ctx.traceId, parentId: ctx.parentId, eventType: ctx.eventType },
       ...fields,
@@ -257,7 +264,7 @@ export const createPlugin = async ({
     });
   }
 
-  function handleToolBefore(input: unknown): void {
+  function handleToolBefore(input: unknown): Promise<void> {
     const payload = input as {
       input: { callID: string; tool: string; args?: Record<string, unknown>; sessionID?: string };
     };
@@ -274,7 +281,7 @@ export const createPlugin = async ({
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     const { execution: mapperExec, ...restFields } = fields;
-    enqueueEvent({
+    return enqueueEvent({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: {
         ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),
@@ -289,14 +296,14 @@ export const createPlugin = async ({
     });
   }
 
-  function handleToolAfter(input: unknown): void {
+  function handleToolAfter(input: unknown): Promise<void> {
     const payload = input as {
       input: { callID: string; sessionID?: string };
       result?: { error?: boolean };
     };
     const tc = toolCalls.get(payload.input.callID);
     const fields = mapToolAfter(payload, toolCalls);
-    if (Object.keys(fields).length === 0) return;
+    if (Object.keys(fields).length === 0) return Promise.resolve();
 
     // When the completed tool is a skill, call mapSkillComplete to emit skill_call event type
     if (tc?.toolName === 'skill' && tc.skillName) {
@@ -316,7 +323,7 @@ export const createPlugin = async ({
     const ctx = sessionId ? executions.get(sessionId) : undefined;
 
     const { execution: mapperExec, ...restFields } = fields;
-    enqueueEvent({
+    return enqueueEvent({
       session: ctx ? { id: ctx.sessionId } : {},
       execution: {
         ...(ctx ? { traceId: ctx.traceId, parentId: ctx.parentId } : { traceId: '' }),

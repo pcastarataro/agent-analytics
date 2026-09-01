@@ -12,6 +12,10 @@ import { UsersPage } from './pages/UsersPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { SkillDetailPage } from './pages/SkillDetailPage';
 import { DefinitionsPage } from './pages/DefinitionsPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
+import { BranchesPage } from './pages/BranchesPage';
+import { BranchDetailPage } from './pages/BranchDetailPage';
 
 export function App() {
   return (
@@ -21,6 +25,10 @@ export function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<OverviewPage />} />
             <Route path="/events" element={<EventsPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/projects/:name" element={<ProjectDetailPage />} />
+            <Route path="/branches" element={<BranchesPage />} />
+            <Route path="/branches/:name" element={<BranchDetailPage />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/agents/:name" element={<AgentDetailPage />} />
             <Route path="/skills" element={<SkillsPage />} />

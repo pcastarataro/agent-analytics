@@ -8,7 +8,10 @@ export const actorSchema = z.looseObject({
   userId: z.string(),
 });
 
-export const projectSchema = z.looseObject({});
+export const projectSchema = z.looseObject({
+  name: z.string().optional(),
+  branch: z.string().optional(),
+});
 
 export const sessionSchema = z.looseObject({});
 

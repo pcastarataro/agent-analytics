@@ -42,13 +42,17 @@ beforeAll(async () => {
     "event_type" text,
     "timestamp" timestamp with time zone,
     "status" text,
-    "content_hash" text
+    "content_hash" text,
+    "project_name" text GENERATED ALWAYS AS (coalesce(nullif("project"::jsonb->>'name', ''), 'unknown')) STORED,
+    "project_branch" text GENERATED ALWAYS AS (coalesce(nullif("project"::jsonb->>'branch', ''), 'unknown')) STORED
   )`);
   await db.execute(sql`CREATE INDEX "idx_agent_name" ON "usage_events" ("agent_name")`);
   await db.execute(sql`CREATE INDEX "idx_session_id" ON "usage_events" ("session_id")`);
   await db.execute(sql`CREATE INDEX "idx_timestamp" ON "usage_events" ("timestamp")`);
   await db.execute(sql`CREATE INDEX "idx_status" ON "usage_events" ("status")`);
   await db.execute(sql`CREATE UNIQUE INDEX "idx_content_hash_unique" ON "usage_events" ("content_hash")`);
+  await db.execute(sql`CREATE INDEX "idx_project_name" ON "usage_events" ("project_name")`);
+  await db.execute(sql`CREATE INDEX "idx_project_branch" ON "usage_events" ("project_branch")`);
 });
 
 afterAll(async () => {

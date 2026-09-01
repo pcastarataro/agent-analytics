@@ -49,6 +49,13 @@ function createMockRepository(): EventRepository {
         (d) => d.entityType === entityType && d.entityName === entityName,
       );
     }),
+    getAllDefinitions: jest.fn().mockResolvedValue([]),
+    getSkillVersions: jest.fn().mockResolvedValue([]),
+    getUsedEntityNames: jest.fn().mockResolvedValue({ skills: [], agents: [] }),
+    getProjectStats: jest.fn().mockResolvedValue([]),
+    getProjectByName: jest.fn().mockResolvedValue(null),
+    getBranchStats: jest.fn().mockResolvedValue([]),
+    getBranchByName: jest.fn().mockResolvedValue(null),
   };
 }
 
