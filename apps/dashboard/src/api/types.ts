@@ -278,3 +278,7 @@ export interface BranchDetail {
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];
 }
+
+export interface CostOverTimeData {
+  data: Array<{ date: string; cost: number }>;
+}

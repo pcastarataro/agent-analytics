@@ -294,6 +294,7 @@ export interface EventRepository {
   getProjectByName(projectName: string): Promise<ProjectDetail | null>;
   getBranchStats(filters?: DateFilters): Promise<BranchStat[]>;
   getBranchByName(branch: string): Promise<BranchDetail | null>;
+  getCostOverTime(filters?: DateFilters): Promise<Array<{ date: string; cost: number }>>;
 }
 
 export function generateContentHash(event: UsageEvent): string {
@@ -1471,6 +1472,31 @@ export function createDrizzleRepository(
         costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),
       };
+    },
+
+    async getCostOverTime(filters?: DateFilters): Promise<Array<{ date: string; cost: number }>> {
+      const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
+
+      const conditions: SQL[] = [];
+      if (filters?.from !== undefined) {
+        conditions.push(gte(usageEvents.timestamp, filters.from));
+      }
+      if (filters?.to !== undefined) {
+        conditions.push(lte(usageEvents.timestamp, filters.to));
+      }
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const rows = await db
+        .select({
+          date: dateColumn,
+          cost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(whereClause ?? undefined)
+        .groupBy(dateColumn)
+        .orderBy(dateColumn);
+
+      return rows.map((r) => ({ date: r.date, cost: Number(r.cost) }));
     },
   };
 }

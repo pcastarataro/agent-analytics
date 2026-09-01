@@ -1,5 +1,5 @@
 import { useApi } from '../hooks/useApi';
-import type { StatsOverview } from '../api/types';
+import type { StatsOverview, CostOverTimeData } from '../api/types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { UsageSection } from './OverviewPage/UsageSection';
@@ -8,11 +8,13 @@ import { QualitySection } from './OverviewPage/QualitySection';
 import { EventsByAgent } from './OverviewPage/EventsByAgent';
 import { CostByAgent } from './OverviewPage/CostByAgent';
 import { EventsOverTime } from './OverviewPage/EventsOverTime';
+import { CostOverTime } from './OverviewPage/CostOverTime';
 import type { AgentStat } from '../api/types';
 
 export function OverviewPage() {
   const { data, loading, error, refetch } = useApi<StatsOverview>('/v1/stats/overview');
   const { data: agentsData } = useApi<{ data: AgentStat[] }>('/v1/stats/agents');
+  const { data: costOverTimeData } = useApi<CostOverTimeData>('/v1/stats/cost-over-time');
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error.message} onRetry={refetch} />;
@@ -38,6 +40,7 @@ export function OverviewPage() {
         <CostByAgent data={agentsData?.data ?? []} />
       </div>
       <EventsOverTime data={data.byDate} />
+      <CostOverTime data={costOverTimeData?.data ?? []} />
     </div>
   );
 }

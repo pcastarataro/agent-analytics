@@ -232,5 +232,26 @@ export function createStatsRoutes(repository: EventRepository): Router {
     })();
   });
 
+  router.get('/cost-over-time', (req, res, next) => {
+    void (async () => {
+      try {
+        const { from, to } = req.query as Record<string, string | undefined>;
+
+        const dateFilters: DateFilters = {};
+        if (from !== undefined) dateFilters.from = new Date(from);
+        if (to !== undefined) dateFilters.to = new Date(to);
+
+        const hasFilters = Object.keys(dateFilters).length > 0;
+        const filters = hasFilters ? dateFilters : undefined;
+
+        const data = await repository.getCostOverTime(filters);
+
+        res.json({ data });
+      } catch (err) {
+        next(err);
+      }
+    })();
+  });
+
   return router;
 }

@@ -4,7 +4,6 @@ import type { SkillDetail, Definition } from '../api/types';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
 import { MarkdownViewer } from '../components/MarkdownViewer';
-import { DefinitionUpload } from '../components/DefinitionUpload';
 import { useState, useEffect } from 'react';
 import {
   LineChart,
@@ -25,7 +24,6 @@ export function SkillDetailPage() {
   );
 
   const [definition, setDefinition] = useState<Definition | null>(null);
-  const [showUpload, setShowUpload] = useState(false);
 
   useEffect(() => {
     if (!skillName) return;
@@ -161,26 +159,8 @@ export function SkillDetailPage() {
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-gray-700">Definition</h3>
-          <button
-            onClick={() => setShowUpload(!showUpload)}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            {showUpload ? 'Cancel' : definition ? 'Edit' : 'Add definition'}
-          </button>
-        </div>
-        {showUpload ? (
-          <DefinitionUpload
-            entityType="skill"
-            entityName={data.skillName}
-            existingDefinition={definition}
-            onSaved={(def) => {
-              setDefinition(def);
-              setShowUpload(false);
-            }}
-          />
-        ) : definition ? (
+        <h3 className="mb-3 text-sm font-medium text-gray-700">Definition</h3>
+        {definition ? (
           <MarkdownViewer content={definition.content} />
         ) : (
           <p className="text-sm text-gray-500">No definition uploaded.</p>

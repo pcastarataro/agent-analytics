@@ -39,6 +39,7 @@ function createMockRepository(): EventRepository {
     getProjectByName: jest.fn().mockResolvedValue(null),
     getBranchStats: jest.fn().mockResolvedValue([]),
     getBranchByName: jest.fn().mockResolvedValue(null),
+    getCostOverTime: jest.fn().mockResolvedValue([]),
   };
 }
 
