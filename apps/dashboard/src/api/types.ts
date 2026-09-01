@@ -189,6 +189,8 @@ export interface UserDetail {
   lastSeenAt: string;
   agentsUsed: Array<{ name: string; count: number; totalCost: number }>;
   skillsUsed: Array<{ name: string; count: number; totalCost: number }>;
+  byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byBranch: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];
@@ -243,6 +245,8 @@ export interface ProjectDetail {
   distinctAgents: number;
   byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   recentEvents: UsageEventDTO[];
 }
@@ -274,6 +278,8 @@ export interface BranchDetail {
   distinctAgents: number;
   byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];

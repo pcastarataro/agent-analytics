@@ -173,6 +173,8 @@ export interface UserDetail {
   lastSeenAt: Date;
   agentsUsed: Array<{ name: string; count: number }>;
   skillsUsed: Array<{ name: string; count: number; totalCost: number }>;
+  byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byBranch: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEvent[];
@@ -227,6 +229,8 @@ export interface ProjectDetail {
   distinctAgents: number;
   byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   recentEvents: UsageEvent[];
 }
@@ -258,6 +262,8 @@ export interface BranchDetail {
   distinctAgents: number;
   byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
+  bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEvent[];
@@ -1042,6 +1048,28 @@ export function createDrizzleRepository(
         .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
         .orderBy(sql`count(*) desc`);
 
+      const byProjectRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.projectName}, 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.projectName)
+        .orderBy(sql`count(*) desc`);
+
+      const byBranchRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.projectBranch}, 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(where)
+        .groupBy(usageEvents.projectBranch)
+        .orderBy(sql`count(*) desc`);
+
       const costByDateRows = await db
         .select({
           date: dateColumn,
@@ -1070,6 +1098,8 @@ export function createDrizzleRepository(
         lastSeenAt: stats.lastSeenAt instanceof Date ? stats.lastSeenAt : new Date(stats.lastSeenAt),
         agentsUsed: agentsUsedRows.map((r) => ({ name: r.name ?? 'unknown', count: r.count, totalCost: Number(r.totalCost) })),
         skillsUsed: skillsUsedRows.map((r) => ({ name: r.name, count: r.count, totalCost: Number(r.totalCost) })),
+        byProject: byProjectRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byBranch: byBranchRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),
@@ -1309,6 +1339,28 @@ export function createDrizzleRepository(
         .groupBy(usageEvents.agentName)
         .orderBy(sql`count(*) desc`);
 
+      const bySkillRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'name', 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(and(where, sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`))
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
+        .orderBy(sql`count(*) desc`);
+
+      const byUserRows = await db
+        .select({
+          name: sql<string>`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(and(where, sql`nullif(${usageEvents.actor}::jsonb->>'userId', '') IS NOT NULL`))
+        .groupBy(sql`${usageEvents.actor}::jsonb->>'userId'`)
+        .orderBy(sql`count(*) desc`);
+
       const eventsOverTimeRows = await db
         .select({ date: dateColumn, count: sql<number>`count(*)::int` })
         .from(usageEvents)
@@ -1337,6 +1389,8 @@ export function createDrizzleRepository(
         distinctAgents: stats.distinctAgents,
         byBranch: byBranchRows.map((r) => ({ branch: r.branch ?? 'unknown', eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        bySkill: bySkillRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byUser: byUserRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         recentEvents: recentRows.map(toEvent),
       };
@@ -1430,6 +1484,28 @@ export function createDrizzleRepository(
         .groupBy(usageEvents.agentName)
         .orderBy(sql`count(*) desc`);
 
+      const bySkillRows = await db
+        .select({
+          name: sql<string>`coalesce(${usageEvents.skill}::jsonb->>'name', 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(and(where, sql`(${usageEvents.skill}::jsonb->>'name') IS NOT NULL AND (${usageEvents.skill}::jsonb->>'name') != 'unknown'`))
+        .groupBy(sql`${usageEvents.skill}::jsonb->>'name'`)
+        .orderBy(sql`count(*) desc`);
+
+      const byUserRows = await db
+        .select({
+          name: sql<string>`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .where(and(where, sql`nullif(${usageEvents.actor}::jsonb->>'userId', '') IS NOT NULL`))
+        .groupBy(sql`${usageEvents.actor}::jsonb->>'userId'`)
+        .orderBy(sql`count(*) desc`);
+
       const eventsOverTimeRows = await db
         .select({ date: dateColumn, count: sql<number>`count(*)::int` })
         .from(usageEvents)
@@ -1468,6 +1544,8 @@ export function createDrizzleRepository(
         distinctAgents: stats.distinctAgents,
         byProject: byProjectRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        bySkill: bySkillRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byUser: byUserRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),

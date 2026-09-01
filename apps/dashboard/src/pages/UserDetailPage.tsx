@@ -243,6 +243,87 @@ export function UserDetailPage() {
         </div>
       </div>
 
+      {/* Projects + Branches row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Projects</h3>
+          {data.byProject.length === 0 ? (
+            <p className="text-sm text-gray-500">No project data available.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase text-gray-500">
+                    <th className="px-3 py-2">Project</th>
+                    <th className="px-3 py-2 text-right">Events</th>
+                    <th className="px-3 py-2 text-right">Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.byProject.map((p) => (
+                    <tr key={p.name} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-3 py-2 text-gray-700">
+                        <Link
+                          to={`/projects/${encodeURIComponent(p.name)}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {p.name}
+                        </Link>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">
+                        {p.eventCount.toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">
+                        ${p.totalCost.toFixed(4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Branches</h3>
+          {data.byBranch.length === 0 ? (
+            <p className="text-sm text-gray-500">No branch data available.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase text-gray-500">
+                    <th className="px-3 py-2">Branch</th>
+                    <th className="px-3 py-2 text-right">Events</th>
+                    <th className="px-3 py-2 text-right">Cost</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {data.byBranch.map((b) => (
+                    <tr key={b.name} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-3 py-2 text-gray-700">
+                        <Link
+                          to={`/branches/${encodeURIComponent(b.name)}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {b.name}
+                        </Link>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">
+                        {b.eventCount.toLocaleString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right text-gray-600">
+                        ${b.totalCost.toFixed(4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Recent events */}
       {data.recentEvents.length > 0 && (
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
