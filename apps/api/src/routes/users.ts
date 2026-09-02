@@ -1,3 +1,4 @@
+import { hash } from 'bcryptjs';
 import { Router } from 'express';
 
 import type { UserRepository } from '@agent-analytics/database';
@@ -40,8 +41,7 @@ export function createUserRoutes(userRepository: UserRepository): Router {
           return;
         }
 
-        const bcrypt = await import('bcryptjs');
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await hash(password, 10);
         const result = await userRepository.create(name, passwordHash);
 
         res.status(201).json({
