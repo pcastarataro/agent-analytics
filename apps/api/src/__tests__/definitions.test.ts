@@ -2,6 +2,7 @@ import type { EventRepository, Definition } from '@agent-analytics/database';
 
 import { createApp } from '../server';
 import { loadConfig } from '../config';
+import { createMockUserRepository } from './helpers';
 
 function createMockRepository(): EventRepository {
   const definitionsDb = new Map<string, Definition>();
@@ -71,7 +72,7 @@ describe('PUT /v1/definitions/:hash with version', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('persists version when provided and includes it in GET response', async () => {

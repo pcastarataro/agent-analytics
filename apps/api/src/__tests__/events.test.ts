@@ -8,6 +8,7 @@ import type { UsageEvent } from '@agent-analytics/event-schema';
 
 import { createApp } from '../server';
 import { loadConfig } from '../config';
+import { createMockUserRepository } from './helpers';
 
 function createMockRepository(): EventRepository {
   const events: UsageEvent[] = [];
@@ -88,7 +89,7 @@ describe('Events routes', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   describe('POST /v1/events/batch', () => {
@@ -96,7 +97,7 @@ describe('Events routes', () => {
       const { default: request } = await import('supertest');
       const events = [makeEvent(), makeEvent({ id: '0192e000-1000-7000-8000-000000000002' })];
 
-      const res = await request(app).post('/v1/events/batch').send(events);
+      const res = await request(app).post('/v1/events/batch').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234').send(events);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual({ accepted: 2 });
@@ -104,7 +105,7 @@ describe('Events routes', () => {
 
     it('returns 0 accepted for empty batch', async () => {
       const { default: request } = await import('supertest');
-      const res = await request(app).post('/v1/events/batch').send([]);
+      const res = await request(app).post('/v1/events/batch').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234').send([]);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual({ accepted: 0 });
@@ -112,9 +113,17 @@ describe('Events routes', () => {
 
     it('rejects non-array body with 400', async () => {
       const { default: request } = await import('supertest');
-      const res = await request(app).post('/v1/events/batch').send({ single: 'object' });
+      const res = await request(app).post('/v1/events/batch').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234').send({ single: 'object' });
 
       expect(res.status).toBe(400);
+    });
+
+    it('rejects request without API key', async () => {
+      const { default: request } = await import('supertest');
+      const res = await request(app).post('/v1/events/batch').send([]);
+
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ error: 'Invalid or missing API key', code: 'INVALID_API_KEY' });
     });
   });
 
@@ -131,7 +140,7 @@ describe('Events routes', () => {
         nextCursor: events[events.length - 1]?.id ?? null,
       });
 
-      const res = await request(app).get('/v1/events?limit=10');
+      const res = await request(app).get('/v1/events?limit=10').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234');
 
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(10);
@@ -140,7 +149,7 @@ describe('Events routes', () => {
 
     it('passes filters to repository', async () => {
       const { default: request } = await import('supertest');
-      const res = await request(app).get('/v1/events?agentName=test-agent&status=success&limit=5');
+      const res = await request(app).get('/v1/events?agentName=test-agent&status=success&limit=5').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234');
 
       expect(res.status).toBe(200);
       expect(repo.findAll).toHaveBeenCalledWith(
@@ -151,7 +160,7 @@ describe('Events routes', () => {
 
     it('passes cursor to repository', async () => {
       const { default: request } = await import('supertest');
-      const res = await request(app).get('/v1/events?cursor=abc-123&limit=10');
+      const res = await request(app).get('/v1/events?cursor=abc-123&limit=10').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234');
 
       expect(res.status).toBe(200);
       expect(repo.findAll).toHaveBeenCalledWith(

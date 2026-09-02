@@ -8,6 +8,7 @@ import type { UsageEvent } from '@agent-analytics/event-schema';
 
 import { createApp } from '../server';
 import { loadConfig } from '../config';
+import { createMockUserRepository } from './helpers';
 
 function makeEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
   const base: UsageEvent = {
@@ -119,7 +120,7 @@ describe('Session routes', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   describe('GET /v1/sessions', () => {

@@ -29,6 +29,14 @@ export function createEventRoutes(repository: EventRepository): Router {
           console.warn(`[events/batch] Skipped ${errors.length} invalid event(s):`, errors);
         }
 
+        // Inject userId from authenticated API key — server is source of truth
+        if (req.user) {
+          for (const event of validEvents) {
+            if (!event.actor) event.actor = {} as typeof event.actor;
+            (event.actor as Record<string, unknown>).userId = req.user.id;
+          }
+        }
+
         const accepted = await repository.insertBatch(validEvents);
         res.status(201).json({ accepted });
       } catch (err) {

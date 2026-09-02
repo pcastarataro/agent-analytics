@@ -2,6 +2,14 @@ import type { EventRepository, DateFilters, MetricsAggregation, AgentStat, Skill
 
 import { createApp } from '../server';
 import { loadConfig } from '../config';
+import { createMockUserRepository } from './helpers';
+
+const TEST_API_KEY = 'aa_testkey1234567890123456789012345678901234';
+
+// Helper: all /v1/stats routes are apiKeyAuth-protected
+function authed(req: { set: (key: string, val: string) => any }) {
+  return req.set('X-API-Key', TEST_API_KEY);
+}
 
 const emptyMetrics: MetricsAggregation = {
   usage: { totalEvents: 0, distinctSessions: 0, distinctExecutions: 0, agentInvocations: 0, skillInvocations: 0, toolCalls: 0 },
@@ -54,7 +62,7 @@ describe('GET /v1/stats/overview', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns full overview with all metric groups', async () => {
@@ -75,7 +83,7 @@ describe('GET /v1/stats/overview', () => {
 
     (repo.getMetricsAggregation as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/overview');
+    const res = await authed(request(app).get('/v1/stats/overview'));
 
     expect(res.status).toBe(200);
     expect(res.body.usage.totalEvents).toBe(100);
@@ -96,9 +104,9 @@ describe('GET /v1/stats/overview', () => {
       to: new Date('2026-02-28T23:59:59Z'),
     };
 
-    const res = await request(app).get(
+    const res = await authed(request(app).get(
       '/v1/stats/overview?from=2026-02-01T00:00:00Z&to=2026-02-28T23:59:59Z',
-    );
+    ));
 
     expect(res.status).toBe(200);
     expect(repo.getMetricsAggregation).toHaveBeenCalledWith(expectedFilters);
@@ -109,7 +117,7 @@ describe('GET /v1/stats/overview', () => {
 
     (repo.getMetricsAggregation as jest.Mock).mockResolvedValueOnce(emptyMetrics);
 
-    const res = await request(app).get('/v1/stats/overview');
+    const res = await authed(request(app).get('/v1/stats/overview'));
 
     expect(res.status).toBe(200);
     expect(res.body.usage.totalEvents).toBe(0);
@@ -128,7 +136,7 @@ describe('GET /v1/stats/agents', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns agent stats with correct shape', async () => {
@@ -141,7 +149,7 @@ describe('GET /v1/stats/agents', () => {
 
     (repo.getAgentStats as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/agents');
+    const res = await authed(request(app).get('/v1/stats/agents'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
@@ -158,7 +166,7 @@ describe('GET /v1/stats/agents', () => {
       to: new Date('2026-03-31T23:59:59Z'),
     };
 
-    const res = await request(app).get('/v1/stats/agents?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z');
+    const res = await authed(request(app).get('/v1/stats/agents?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z'));
 
     expect(res.status).toBe(200);
     expect(repo.getAgentStats).toHaveBeenCalledWith(expectedFilters);
@@ -169,7 +177,7 @@ describe('GET /v1/stats/agents', () => {
 
     (repo.getAgentStats as jest.Mock).mockResolvedValueOnce([]);
 
-    const res = await request(app).get('/v1/stats/agents');
+    const res = await authed(request(app).get('/v1/stats/agents'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -187,7 +195,7 @@ describe('GET /v1/stats/skills', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns skill stats with correct shape', async () => {
@@ -200,7 +208,7 @@ describe('GET /v1/stats/skills', () => {
 
     (repo.getSkillStats as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/skills');
+    const res = await authed(request(app).get('/v1/stats/skills'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
@@ -217,7 +225,7 @@ describe('GET /v1/stats/skills', () => {
       to: new Date('2026-03-31T23:59:59Z'),
     };
 
-    const res = await request(app).get('/v1/stats/skills?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z');
+    const res = await authed(request(app).get('/v1/stats/skills?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z'));
 
     expect(res.status).toBe(200);
     expect(repo.getSkillStats).toHaveBeenCalledWith(expectedFilters);
@@ -228,7 +236,7 @@ describe('GET /v1/stats/skills', () => {
 
     (repo.getSkillStats as jest.Mock).mockResolvedValueOnce([]);
 
-    const res = await request(app).get('/v1/stats/skills');
+    const res = await authed(request(app).get('/v1/stats/skills'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -246,7 +254,7 @@ describe('GET /v1/stats/users', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns user stats with correct shape', async () => {
@@ -259,7 +267,7 @@ describe('GET /v1/stats/users', () => {
 
     (repo.getUserStats as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/users');
+    const res = await authed(request(app).get('/v1/stats/users'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(2);
@@ -276,7 +284,7 @@ describe('GET /v1/stats/users', () => {
       to: new Date('2026-03-31T23:59:59Z'),
     };
 
-    const res = await request(app).get('/v1/stats/users?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z');
+    const res = await authed(request(app).get('/v1/stats/users?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z'));
 
     expect(res.status).toBe(200);
     expect(repo.getUserStats).toHaveBeenCalledWith(expectedFilters);
@@ -287,7 +295,7 @@ describe('GET /v1/stats/users', () => {
 
     (repo.getUserStats as jest.Mock).mockResolvedValueOnce([]);
 
-    const res = await request(app).get('/v1/stats/users');
+    const res = await authed(request(app).get('/v1/stats/users'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -305,7 +313,7 @@ describe('GET /v1/stats/agents/:name', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns full response shape with byVersion array', async () => {
@@ -333,7 +341,7 @@ describe('GET /v1/stats/agents/:name', () => {
 
     (repo.getAgentDetail as jest.Mock).mockResolvedValueOnce(mockDetail);
 
-    const res = await request(app).get('/v1/stats/agents/alpha');
+    const res = await authed(request(app).get('/v1/stats/agents/alpha'));
 
     expect(res.status).toBe(200);
     expect(res.body.agentName).toBe('alpha');
@@ -348,7 +356,7 @@ describe('GET /v1/stats/agents/:name', () => {
 
     (repo.getAgentDetail as jest.Mock).mockResolvedValueOnce(null);
 
-    const res = await request(app).get('/v1/stats/agents/nonexistent');
+    const res = await authed(request(app).get('/v1/stats/agents/nonexistent'));
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Agent not found');
@@ -366,7 +374,7 @@ describe('GET /v1/stats/projects', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns project stats with correct shape', async () => {
@@ -389,7 +397,7 @@ describe('GET /v1/stats/projects', () => {
 
     (repo.getProjectStats as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/projects');
+    const res = await authed(request(app).get('/v1/stats/projects'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -400,9 +408,9 @@ describe('GET /v1/stats/projects', () => {
   it('passes date range filters to repository', async () => {
     const { default: request } = await import('supertest');
 
-    const res = await request(app).get(
+    const res = await authed(request(app).get(
       '/v1/stats/projects?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z',
-    );
+    ));
 
     expect(res.status).toBe(200);
     expect(repo.getProjectStats).toHaveBeenCalledWith({
@@ -416,7 +424,7 @@ describe('GET /v1/stats/projects', () => {
 
     (repo.getProjectStats as jest.Mock).mockResolvedValueOnce([]);
 
-    const res = await request(app).get('/v1/stats/projects');
+    const res = await authed(request(app).get('/v1/stats/projects'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -434,7 +442,7 @@ describe('GET /v1/stats/projects/:name', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns project detail', async () => {
@@ -460,7 +468,7 @@ describe('GET /v1/stats/projects/:name', () => {
 
     (repo.getProjectByName as jest.Mock).mockResolvedValueOnce(mockDetail);
 
-    const res = await request(app).get('/v1/stats/projects/agent-analytics');
+    const res = await authed(request(app).get('/v1/stats/projects/agent-analytics'));
 
     expect(res.status).toBe(200);
     expect(res.body.projectName).toBe('agent-analytics');
@@ -472,7 +480,7 @@ describe('GET /v1/stats/projects/:name', () => {
 
     (repo.getProjectByName as jest.Mock).mockResolvedValueOnce(null);
 
-    const res = await request(app).get('/v1/stats/projects/nonexistent');
+    const res = await authed(request(app).get('/v1/stats/projects/nonexistent'));
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Project not found');
@@ -490,7 +498,7 @@ describe('GET /v1/stats/branches', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns branch stats with correct shape', async () => {
@@ -513,7 +521,7 @@ describe('GET /v1/stats/branches', () => {
 
     (repo.getBranchStats as jest.Mock).mockResolvedValueOnce(mockResult);
 
-    const res = await request(app).get('/v1/stats/branches');
+    const res = await authed(request(app).get('/v1/stats/branches'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
@@ -524,9 +532,9 @@ describe('GET /v1/stats/branches', () => {
   it('passes date range filters to repository', async () => {
     const { default: request } = await import('supertest');
 
-    const res = await request(app).get(
+    const res = await authed(request(app).get(
       '/v1/stats/branches?from=2026-03-01T00:00:00Z&to=2026-03-31T23:59:59Z',
-    );
+    ));
 
     expect(res.status).toBe(200);
     expect(repo.getBranchStats).toHaveBeenCalledWith({
@@ -540,7 +548,7 @@ describe('GET /v1/stats/branches', () => {
 
     (repo.getBranchStats as jest.Mock).mockResolvedValueOnce([]);
 
-    const res = await request(app).get('/v1/stats/branches');
+    const res = await authed(request(app).get('/v1/stats/branches'));
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -558,7 +566,7 @@ describe('GET /v1/stats/branches/:name', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['http://localhost:5173'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns branch detail', async () => {
@@ -585,7 +593,7 @@ describe('GET /v1/stats/branches/:name', () => {
 
     (repo.getBranchByName as jest.Mock).mockResolvedValueOnce(mockDetail);
 
-    const res = await request(app).get('/v1/stats/branches/main');
+    const res = await authed(request(app).get('/v1/stats/branches/main'));
 
     expect(res.status).toBe(200);
     expect(res.body.branch).toBe('main');
@@ -598,7 +606,7 @@ describe('GET /v1/stats/branches/:name', () => {
 
     (repo.getBranchByName as jest.Mock).mockResolvedValueOnce(null);
 
-    const res = await request(app).get('/v1/stats/branches/nonexistent');
+    const res = await authed(request(app).get('/v1/stats/branches/nonexistent'));
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Branch not found');

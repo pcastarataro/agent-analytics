@@ -1,7 +1,7 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
-import { createDrizzleRepository } from '@agent-analytics/database';
+import { createDrizzleRepository, createUserRepository } from '@agent-analytics/database';
 
 import { bootstrap } from './index';
 import { loadConfig } from './config';
@@ -16,8 +16,9 @@ async function main() {
   // For local dev without Docker, run: psql $DATABASE_URL -f packages/database/migrations/0000_initial.sql
 
   const repository = createDrizzleRepository(db);
+  const userRepository = createUserRepository(db);
 
-  bootstrap(repository);
+  bootstrap(repository, userRepository);
 }
 
 main().catch((err) => {

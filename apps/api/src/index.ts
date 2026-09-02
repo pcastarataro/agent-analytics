@@ -1,4 +1,4 @@
-import type { EventRepository } from '@agent-analytics/database';
+import type { EventRepository, UserRepository } from '@agent-analytics/database';
 import { EVENT_SCHEMA_PACKAGE_NAME } from '@agent-analytics/event-schema';
 import { SHARED_PACKAGE_NAME } from '@agent-analytics/shared';
 
@@ -11,9 +11,9 @@ export function dependencyPackageNames(): string[] {
   return [EVENT_SCHEMA_PACKAGE_NAME, SHARED_PACKAGE_NAME];
 }
 
-export function bootstrap(repository: EventRepository) {
+export function bootstrap(repository: EventRepository, userRepository: UserRepository) {
   const config = loadConfig();
-  const app = createApp(config, repository);
+  const app = createApp(config, repository, userRepository);
   app.listen(config.port, () => {
     console.log(`[api] listening on port ${config.port}`);
   });

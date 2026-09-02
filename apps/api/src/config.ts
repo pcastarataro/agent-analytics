@@ -1,7 +1,10 @@
+import crypto from 'crypto';
+
 export interface ApiConfig {
   port: number;
   databaseUrl: string;
   corsOrigins: string[];
+  jwtSecret: string;
 }
 
 function envOrThrow(name: string): string {
@@ -18,5 +21,6 @@ export function loadConfig(overrides?: Partial<ApiConfig>): ApiConfig {
     databaseUrl: overrides?.databaseUrl ?? envOrThrow('DATABASE_URL'),
     corsOrigins: overrides?.corsOrigins ??
       process.env['CORS_ORIGINS']?.split(',').filter(Boolean) ?? ['http://localhost:5173'],
+    jwtSecret: overrides?.jwtSecret ?? process.env['JWT_SECRET'] ?? crypto.randomBytes(32).toString('hex'),
   };
 }

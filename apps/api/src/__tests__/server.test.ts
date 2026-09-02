@@ -3,6 +3,7 @@ import type { UsageEvent } from '@agent-analytics/event-schema';
 
 import { createApp } from '../server';
 import { loadConfig } from '../config';
+import { createMockUserRepository } from './helpers';
 
 function createMockRepository(): EventRepository {
   return {
@@ -55,7 +56,7 @@ describe('API Server', () => {
       databaseUrl: 'postgresql://localhost:5432/test',
       corsOrigins: ['https://app.example.com'],
     });
-    app = createApp(config, repo);
+    app = createApp(config, repo, createMockUserRepository());
   });
 
   it('returns 200 on GET /health', async () => {
@@ -67,13 +68,13 @@ describe('API Server', () => {
 
   it('rejects non-array body on POST /v1/events/batch', async () => {
     const { default: request } = await import('supertest');
-    const res = await request(app).post('/v1/events/batch').send({ not: 'an array' });
+    const res = await request(app).post('/v1/events/batch').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234').send({ not: 'an array' });
     expect(res.status).toBe(400);
   });
 
   it('accepts empty array on POST /v1/events/batch', async () => {
     const { default: request } = await import('supertest');
-    const res = await request(app).post('/v1/events/batch').send([]);
+    const res = await request(app).post('/v1/events/batch').set('X-API-Key', 'aa_testkey1234567890123456789012345678901234').send([]);
     expect(res.status).toBe(201);
     expect(res.body).toEqual({ accepted: 0 });
   });
