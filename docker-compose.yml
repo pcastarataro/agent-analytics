@@ -55,10 +55,15 @@ services:
         sleep 3 &&
         echo 'Running migrations...' &&
         npx drizzle-kit push --force &&
-        echo 'Migrations complete!'
+        echo 'Migrations complete!' &&
+        echo 'Seeding admin user...' &&
+        npm run seed &&
+        echo 'Seed complete!'
       "
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/agent_analytics
+      ADMIN_NAME: admin
+      ADMIN_PASSWORD: admin
     depends_on:
       db:
         condition: service_healthy

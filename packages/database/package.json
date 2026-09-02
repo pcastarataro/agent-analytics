@@ -4,6 +4,9 @@
   "private": true,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "seed": "node --import tsx src/seed.ts"
+  },
   "files": [
     "src",
     "migrations"
@@ -17,6 +20,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "drizzle-kit": "^0.30.0"
+    "drizzle-kit": "^0.30.0",
+    "tsx": "^4.23.12"
   }
 }
