@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import type { EventRepository, UserRepository } from '@agent-analytics/database';
 
-import { apiKeyAuth, jwtAuth } from './middleware/auth';
+import { apiKeyAuth, jwtAuth, anyAuth } from './middleware/auth';
 import { errorHandler } from './middleware/error-handler';
 import { validateBody } from './middleware/validate';
 import { createAuthRoutes } from './routes/auth';
@@ -35,12 +35,14 @@ export function createApp(
   // User management — JWT protected
   app.use('/v1/users', jwtAuth(config.jwtSecret), createUserRoutes(userRepository));
 
-  // Events — API key protected
-  app.use('/v1/events/batch', apiKeyAuth(userRepository), validateBody(z.array(z.unknown())), createEventRoutes(repository));
-  app.use('/v1/events', apiKeyAuth(userRepository), createEventRoutes(repository));
-  app.use('/v1/sessions', createSessionRoutes(repository));
-  app.use('/v1/stats', apiKeyAuth(userRepository), createStatsRoutes(repository));
-  app.use('/v1/definitions', createDefinitionRoutes(repository));
+  // Events — accept both API key (collector) and JWT (dashboard)
+  app.use('/v1/events/batch', anyAuth(userRepository, config.jwtSecret), validateBody(z.array(z.unknown())), createEventRoutes(repository));
+  app.use('/v1/events', anyAuth(userRepository, config.jwtSecret), createEventRoutes(repository));
+
+  // Dashboard read routes — JWT protected
+  app.use('/v1/sessions', jwtAuth(config.jwtSecret), createSessionRoutes(repository));
+  app.use('/v1/stats', jwtAuth(config.jwtSecret), createStatsRoutes(repository));
+  app.use('/v1/definitions', jwtAuth(config.jwtSecret), createDefinitionRoutes(repository));
 
   app.use(errorHandler);
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { SkillVersion } from '../api/types';
+import { fetchApi } from '../api/client';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { ErrorMessage } from '../components/ErrorMessage';
@@ -18,11 +19,7 @@ export function SkillsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/v1/stats/skills/versions')
-      .then((res) => {
-        if (!res.ok) throw new Error(`API ${res.status}`);
-        return res.json();
-      })
+    fetchApi<{ data: SkillVersion[] }>('/v1/stats/skills/versions')
       .then((json) => {
         const versions: SkillVersion[] = json.data ?? [];
         // Group by skillName

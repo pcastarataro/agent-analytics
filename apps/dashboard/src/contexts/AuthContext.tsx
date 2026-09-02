@@ -40,37 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(getStoredUser);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Validate token on mount
+  // Restore session from localStorage on mount.
+  // We do NOT validate with a network request here — background tabs get their
+  // fetches cancelled by the browser, which would nuke a perfectly valid session.
+  // Instead, trust the stored token and let fetchApi handle 401s on real requests.
   useEffect(() => {
-    const storedToken = getStoredToken();
-    if (!storedToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    // Token exists — try a lightweight request to validate
-    fetch('/v1/users', {
-      headers: { Authorization: `Bearer ${storedToken}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Invalid');
-        return res.json();
-      })
-      .then(() => {
-        // Token valid — keep it
-        setToken(storedToken);
-        setUser(getStoredUser());
-      })
-      .catch(() => {
-        // Token invalid — clear
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        setToken(null);
-        setUser(null);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+    setToken(getStoredToken());
+    setUser(getStoredUser());
+    setIsLoading(false);
   }, []);
 
   const login = useCallback(async (name: string, password: string) => {

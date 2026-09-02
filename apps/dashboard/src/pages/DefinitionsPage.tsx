@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { Definition } from '../api/types';
+import { fetchApi } from '../api/client';
 import { MarkdownViewer } from '../components/MarkdownViewer';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -11,11 +12,7 @@ export function DefinitionsPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/v1/definitions')
-      .then((res) => {
-        if (!res.ok) return { data: [] };
-        return res.json();
-      })
+    fetchApi<{ data: Definition[] }>('/v1/definitions')
       .then((json) => {
         setDefinitions(json.data ?? []);
         setLoading(false);
