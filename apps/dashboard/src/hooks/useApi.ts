@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { getAuthToken, clearAuthToken } from '../contexts/AuthContext';
 
 interface UseApiResult<T> {
   data: T | null;
@@ -22,8 +23,17 @@ export function useApi<T>(url: string): UseApiResult<T> {
     setLoading(true);
     setError(null);
 
-    fetch(url)
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch(url, { headers })
       .then(async (res) => {
+        if (res.status === 401) {
+          clearAuthToken();
+          window.location.href = '/login';
+          throw new Error('Session expired');
+        }
         if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
         return (await res.json()) as T;
       })

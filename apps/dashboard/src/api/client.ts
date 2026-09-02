@@ -1,8 +1,30 @@
+import { getAuthToken, clearAuthToken } from '../contexts/AuthContext';
+
 export async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
-  if (!res.ok) {
-    throw new Error(`API ${res.status}: ${res.statusText}`);
+  const token = getAuthToken();
+  const headers = new Headers(init?.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
+
+  const res = await fetch(path, { ...init, headers });
+
+  if (res.status === 401) {
+    clearAuthToken();
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || `API ${res.status}: ${res.statusText}`);
+  }
+
+  // 204 No Content
+  if (res.status === 204) {
+    return undefined as T;
+  }
+
   return (await res.json()) as T;
 }
 

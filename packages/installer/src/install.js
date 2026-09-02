@@ -10,8 +10,7 @@
  *
  * Options:
  *   --url <url>    API endpoint URL (default: http://localhost:3000)
- *   --user <id>    User ID for analytics tracking (default: anonymous)
- *   --api-key <k>  API key for authentication (optional)
+ *   --api-key <k>  API key for authentication (required)
  *   --help, -h     Show this help message
  *
  * Installs to ~/.config/opencode/plugins/analytics.mjs
@@ -34,7 +33,7 @@ const dim = (s) => `\x1b[2m${s}\x1b[0m`;
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const parsed = { url: 'http://localhost:3000', userId: 'anonymous', apiKey: null };
+  const parsed = { url: 'http://localhost:3000', apiKey: null };
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -43,8 +42,6 @@ function parseArgs(argv) {
       process.exit(0);
     } else if (arg === '--url' && args[i + 1]) {
       parsed.url = args[++i];
-    } else if (arg === '--user' && args[i + 1]) {
-      parsed.userId = args[++i];
     } else if (arg === '--api-key' && args[i + 1]) {
       parsed.apiKey = args[++i];
     }
@@ -59,17 +56,22 @@ function printHelp() {
   console.log(`  ${cyan('npx @agent-analytics/installer')} ${dim('[options]')}\n`);
   console.log('Options:');
   console.log(`  ${cyan('--url <url>')}      API endpoint URL (default: http://localhost:3000)`);
-  console.log(`  ${cyan('--user <id>')}      User ID for analytics tracking (default: anonymous)`);
-  console.log(`  ${cyan('--api-key <key>')}  API key for authentication (optional)`);
+  console.log(`  ${cyan('--api-key <key>')}  API key for authentication (required)`);
   console.log(`  ${cyan('--help, -h')}       Show this help message\n`);
   console.log('Examples:');
-  console.log(`  ${cyan('npx @agent-analytics/installer')}`);
-  console.log(`  ${cyan('npx @agent-analytics/installer --url https://api.example.com --user john')}`);
-  console.log(`  ${cyan('npx @agent-analytics/installer --user pablo --api-key abc123')}\n`);
+  console.log(`  ${cyan('npx @agent-analytics/installer --api-key aa_abc123def456')}`);
+  console.log(`  ${cyan('npx @agent-analytics/installer --url https://api.example.com --api-key aa_abc123def456')}\n`);
 }
 
 function main() {
   const config = parseArgs(process.argv);
+
+  // --api-key is required
+  if (!config.apiKey) {
+    console.error(yellow('\n✗ Error: --api-key is required'));
+    console.log(`  Run ${cyan('npx @agent-analytics/installer --help')} for usage.\n`);
+    process.exit(1);
+  }
 
   console.log(bold('\n🔧 Agent Analytics Plugin Installer\n'));
 
@@ -118,8 +120,7 @@ function main() {
       const existing = JSON.parse(readFileSync(configFile, 'utf-8'));
       const collector = existing.collector || {};
       if (config.url) collector.url = config.url;
-      if (config.userId) collector.userId = config.userId;
-      if (config.apiKey) collector.apiKey = config.apiKey;
+      collector.apiKey = config.apiKey;
       existing.collector = collector;
       writeFileSync(configFile, JSON.stringify(existing, null, 2) + '\n');
       console.log(green('✓ Updated ~/.config/opencode/analytics.json'));
@@ -127,8 +128,7 @@ function main() {
       console.log(yellow('⚠ Could not update config — edit ~/.config/opencode/analytics.json manually'));
     }
   } else {
-    const cfg = { collector: { url: config.url, userId: config.userId } };
-    if (config.apiKey) cfg.collector.apiKey = config.apiKey;
+    const cfg = { collector: { url: config.url, apiKey: config.apiKey } };
     writeFileSync(configFile, JSON.stringify(cfg, null, 2) + '\n');
     console.log(green('✓ Created ~/.config/opencode/analytics.json'));
   }
@@ -136,8 +136,7 @@ function main() {
   // Print summary
   console.log(bold('\n─── Setup Complete ───\n'));
   console.log(`  ${dim('URL:')}   ${cyan(config.url)}`);
-  console.log(`  ${dim('User:')}  ${cyan(config.userId)}`);
-  if (config.apiKey) console.log(`  ${dim('Key:')}   ${cyan('••••' + config.apiKey.slice(-4))}`);
+  console.log(`  ${dim('Key:')}   ${cyan('••••' + config.apiKey.slice(-4))}`);
   console.log(`\n  Restart OpenCode to start collecting events.\n`);
 }
 

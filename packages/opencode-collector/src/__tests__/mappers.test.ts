@@ -18,7 +18,6 @@ function createTestConfig(overrides?: Partial<CollectorConfig>): CollectorConfig
   return {
     url: 'https://analytics.example.com',
     apiKey: 'test-key',
-    userId: 'user-1',
     capture: { prompts: false, responses: false, toolArguments: false },
     disabled: false,
     ...overrides,

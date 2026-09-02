@@ -7,7 +7,6 @@ import {
   collectorConfigSchema,
   ENV_URL,
   ENV_API_KEY,
-  ENV_USER,
   ENV_DISABLED,
   type CollectorConfig,
 } from './domain/config-schema';
@@ -36,7 +35,6 @@ function resolveConfig(directory: string): CollectorConfig {
   const env: Record<string, string | undefined> = {};
   env[ENV_URL] = process.env[ENV_URL];
   env[ENV_API_KEY] = process.env[ENV_API_KEY];
-  env[ENV_USER] = process.env[ENV_USER];
   env[ENV_DISABLED] = process.env[ENV_DISABLED];
 
   let fileConfig: Record<string, unknown> | undefined;
@@ -60,7 +58,6 @@ function resolveConfig(directory: string): CollectorConfig {
   if (fileConfig) Object.assign(merged, fileConfig);
   if (env[ENV_URL]) merged.url = env[ENV_URL];
   if (env[ENV_API_KEY]) merged.apiKey = env[ENV_API_KEY];
-  if (env[ENV_USER]) merged.userId = env[ENV_USER];
   if (env[ENV_DISABLED] === 'true') merged.disabled = true;
 
   const parsed = collectorConfigSchema.safeParse(merged);
@@ -157,7 +154,7 @@ export const createPlugin = async ({
     return branchPromise.then((branch) => {
       const event: UsageEvent = {
         id: generateId(),
-        actor: { userId: config.userId ?? 'anonymous' },
+        actor: { userId: '' },
         project: { name: projectName, branch },
         session: {},
         execution: { traceId: '' },
