@@ -9,12 +9,14 @@
     "migrations"
   ],
   "dependencies": {
-    "@agent-analytics/shared": "*",
     "@agent-analytics/event-schema": "*",
+    "@agent-analytics/shared": "*",
+    "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.39.0",
     "postgres": "^3.4.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "drizzle-kit": "^0.30.0"
   }
 }

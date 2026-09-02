@@ -1,8 +1,10 @@
-export { usageEvents, definitions, type UsageEventRow, type UsageEventInsert, type DefinitionRow, type DefinitionInsert } from './schema';
+export { usageEvents, definitions, users, type UsageEventRow, type UsageEventInsert, type DefinitionRow, type DefinitionInsert, type UserRow, type UserInsert } from './schema';
 export {
   createDrizzleRepository,
+  createUserRepository,
   generateContentHash,
   type EventRepository,
+  type UserRepository,
   type EventFilters,
   type DateFilters,
   type Pagination,

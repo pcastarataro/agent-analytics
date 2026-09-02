@@ -4,7 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
 import type { UsageEvent } from '@agent-analytics/event-schema';
 
-import { usageEvents, definitions, type UsageEventInsert } from './schema';
+import { usageEvents, definitions, users, type UsageEventInsert, type UserRow } from './schema';
 
 export interface DateFilters {
   from?: Date;
@@ -1575,6 +1575,127 @@ export function createDrizzleRepository(
         .orderBy(dateColumn);
 
       return rows.map((r) => ({ date: r.date, cost: Number(r.cost) }));
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// User Repository
+// ---------------------------------------------------------------------------
+
+import { hash as bcryptHash, compare as bcryptCompare } from 'bcryptjs';
+import crypto from 'crypto';
+
+const BCRYPT_ROUNDS = 10;
+
+function generateApiKey(): string {
+  const random = crypto.randomBytes(20).toString('hex');
+  return `aa_${random}`;
+}
+
+export interface UserRepository {
+  findById(id: string): Promise<UserRow | null>;
+  findByName(name: string): Promise<UserRow | null>;
+  findByApiKeyHash(hash: string): Promise<UserRow | null>;
+  create(
+    name: string,
+    passwordHash: string,
+  ): Promise<{ id: string; name: string; apiKey: string; createdAt: Date }>;
+  list(): Promise<UserRow[]>;
+  delete(id: string): Promise<boolean>;
+  revokeKey(id: string): Promise<boolean>;
+  regenerateKey(id: string): Promise<{ apiKey: string }>;
+  hashApiKey(apiKey: string): Promise<string>;
+  comparePassword(plain: string, hash: string): Promise<boolean>;
+}
+
+export function createUserRepository(
+  db: PostgresJsDatabase<Record<string, never>>,
+): UserRepository {
+  return {
+    async findById(id: string): Promise<UserRow | null> {
+      const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      return row ?? null;
+    },
+
+    async findByName(name: string): Promise<UserRow | null> {
+      const [row] = await db.select().from(users).where(eq(users.name, name)).limit(1);
+      return row ?? null;
+    },
+
+    async findByApiKeyHash(hash: string): Promise<UserRow | null> {
+      const [row] = await db
+        .select()
+        .from(users)
+        .where(eq(users.apiKeyHash, hash))
+        .limit(1);
+      return row ?? null;
+    },
+
+    async create(
+      name: string,
+      passwordHash: string,
+    ): Promise<{ id: string; name: string; apiKey: string; createdAt: Date }> {
+      const apiKey = generateApiKey();
+      const apiKeyHash = await bcryptHash(apiKey, BCRYPT_ROUNDS);
+
+      const [row] = await db
+        .insert(users)
+        .values({
+          name,
+          passwordHash,
+          apiKeyHash,
+        })
+        .returning();
+
+      return {
+        id: row!.id,
+        name: row!.name,
+        apiKey,
+        createdAt: row!.createdAt,
+      };
+    },
+
+    async list(): Promise<UserRow[]> {
+      return db.select().from(users).orderBy(users.createdAt);
+    },
+
+    async delete(id: string): Promise<boolean> {
+      // Delete associated events first
+      await db
+        .delete(usageEvents)
+        .where(sql`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), '') = ${id}`);
+
+      await db.delete(users).where(eq(users.id, id));
+      return true;
+    },
+
+    async revokeKey(id: string): Promise<boolean> {
+      await db
+        .update(users)
+        .set({ apiKeyHash: null, updatedAt: new Date() })
+        .where(eq(users.id, id));
+      return true;
+    },
+
+    async regenerateKey(id: string): Promise<{ apiKey: string }> {
+      const apiKey = generateApiKey();
+      const apiKeyHash = await bcryptHash(apiKey, BCRYPT_ROUNDS);
+
+      await db
+        .update(users)
+        .set({ apiKeyHash, updatedAt: new Date() })
+        .where(eq(users.id, id));
+
+      return { apiKey };
+    },
+
+    async hashApiKey(apiKey: string): Promise<string> {
+      return bcryptHash(apiKey, BCRYPT_ROUNDS);
+    },
+
+    async comparePassword(plain: string, hash: string): Promise<boolean> {
+      return bcryptCompare(plain, hash);
     },
   };
 }

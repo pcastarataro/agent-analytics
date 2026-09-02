@@ -1,5 +1,21 @@
 import { jsonb, pgTable, index, uniqueIndex, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull().unique(),
+    passwordHash: text('password_hash').notNull(),
+    apiKeyHash: text('api_key_hash'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index('idx_users_api_key_hash').on(table.apiKeyHash)],
+);
+
+export type UserRow = typeof users.$inferSelect;
+export type UserInsert = typeof users.$inferInsert;
+
 export const usageEvents = pgTable(
   'usage_events',
   {
