@@ -144,6 +144,7 @@ export interface AgentDetail {
   totalCachedTokens: number;
   distinctVersions: number;
   byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   tokensBySkill: Array<{ name: string; tokens: number }>;
   recentEvents: UsageEvent[];
@@ -164,6 +165,7 @@ export interface SkillDetail {
 
 export interface UserDetail {
   userId: string;
+  userName: string | null;
   totalEvents: number;
   totalCost: number;
   totalInputTokens: number;
@@ -230,7 +232,7 @@ export interface ProjectDetail {
   byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
   bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
-  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   recentEvents: UsageEvent[];
 }
@@ -263,7 +265,7 @@ export interface BranchDetail {
   byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
   bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
-  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEvent[];
@@ -898,6 +900,19 @@ export function createDrizzleRepository(
         totalCost: Number(row.totalCost),
       }));
 
+      const byUserRows = await db
+        .select({
+          userId: sql<string>`nullif(${usageEvents.actor}::jsonb->>'userId', '')`,
+          name: sql<string>`coalesce(${users.name}, nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          eventCount: sql<number>`count(*)::int`,
+          totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
+        })
+        .from(usageEvents)
+        .leftJoin(users, sql`${users.id}::text = nullif(${usageEvents.actor}::jsonb->>'userId', '')`)
+        .where(and(where, sql`nullif(${usageEvents.actor}::jsonb->>'userId', '') IS NOT NULL`))
+        .groupBy(sql`${users.name}, ${usageEvents.actor}::jsonb->>'userId'`)
+        .orderBy(sql`count(*) desc`);
+
       const recentRows = await db
         .select()
         .from(usageEvents)
@@ -917,6 +932,7 @@ export function createDrizzleRepository(
         totalCachedTokens: Number(stats.totalCachedTokens),
         distinctVersions: byVersion.length,
         byVersion,
+        byUser: byUserRows.map((r) => ({ userId: r.userId ?? '', name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         tokensBySkill: tokensBySkillRows.map((r) => ({ name: r.name, tokens: Number(r.tokens) })),
         recentEvents: recentRows.map(toEvent),
@@ -1017,6 +1033,13 @@ export function createDrizzleRepository(
       const stats = statsRow[0];
       if (!stats || stats.totalEvents === 0) return null;
 
+      // Look up user name from users table
+      const [userRow] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
       const dateColumn = sql<string>`to_char(${usageEvents.timestamp}, 'YYYY-MM-DD')`;
 
       const eventsOverTimeRows = await db
@@ -1089,6 +1112,7 @@ export function createDrizzleRepository(
 
       return {
         userId,
+        userName: userRow?.name ?? null,
         totalEvents: stats.totalEvents,
         totalCost: Number(stats.totalCost),
         totalInputTokens: Number(stats.totalInputTokens),
@@ -1352,13 +1376,15 @@ export function createDrizzleRepository(
 
       const byUserRows = await db
         .select({
-          name: sql<string>`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          userId: sql<string>`nullif(${usageEvents.actor}::jsonb->>'userId', '')`,
+          name: sql<string>`coalesce(${users.name}, nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
           eventCount: sql<number>`count(*)::int`,
           totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
+        .leftJoin(users, sql`${users.id}::text = nullif(${usageEvents.actor}::jsonb->>'userId', '')`)
         .where(and(where, sql`nullif(${usageEvents.actor}::jsonb->>'userId', '') IS NOT NULL`))
-        .groupBy(sql`${usageEvents.actor}::jsonb->>'userId'`)
+        .groupBy(sql`${users.name}, ${usageEvents.actor}::jsonb->>'userId'`)
         .orderBy(sql`count(*) desc`);
 
       const eventsOverTimeRows = await db
@@ -1390,7 +1416,7 @@ export function createDrizzleRepository(
         byBranch: byBranchRows.map((r) => ({ branch: r.branch ?? 'unknown', eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         bySkill: bySkillRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
-        byUser: byUserRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byUser: byUserRows.map((r) => ({ userId: r.userId ?? '', name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         recentEvents: recentRows.map(toEvent),
       };
@@ -1497,13 +1523,15 @@ export function createDrizzleRepository(
 
       const byUserRows = await db
         .select({
-          name: sql<string>`coalesce(nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
+          userId: sql<string>`nullif(${usageEvents.actor}::jsonb->>'userId', '')`,
+          name: sql<string>`coalesce(${users.name}, nullif(${usageEvents.actor}::jsonb->>'userId', ''), 'unknown')`,
           eventCount: sql<number>`count(*)::int`,
           totalCost: sql<number>`coalesce(sum((${usageEvents.metrics}::jsonb->>'cost')::numeric), 0)::numeric`,
         })
         .from(usageEvents)
+        .leftJoin(users, sql`${users.id}::text = nullif(${usageEvents.actor}::jsonb->>'userId', '')`)
         .where(and(where, sql`nullif(${usageEvents.actor}::jsonb->>'userId', '') IS NOT NULL`))
-        .groupBy(sql`${usageEvents.actor}::jsonb->>'userId'`)
+        .groupBy(sql`${users.name}, ${usageEvents.actor}::jsonb->>'userId'`)
         .orderBy(sql`count(*) desc`);
 
       const eventsOverTimeRows = await db
@@ -1545,7 +1573,7 @@ export function createDrizzleRepository(
         byProject: byProjectRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         byAgent: byAgentRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         bySkill: bySkillRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
-        byUser: byUserRows.map((r) => ({ name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
+        byUser: byUserRows.map((r) => ({ userId: r.userId ?? '', name: r.name, eventCount: r.eventCount, totalCost: Number(r.totalCost) })),
         eventsOverTime: eventsOverTimeRows.map((r) => ({ date: r.date, count: r.count })),
         costByDate: costByDateRows.map((r) => ({ date: r.date, cost: Number(r.cost) })),
         recentEvents: recentRows.map(toEvent),
@@ -1637,7 +1665,7 @@ export function createUserRepository(
       passwordHash: string,
     ): Promise<{ id: string; name: string; apiKey: string; createdAt: Date }> {
       const apiKey = generateApiKey();
-      const apiKeyHash = await bcryptHash(apiKey, BCRYPT_ROUNDS);
+      const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
 
       const [row] = await db
         .insert(users)
@@ -1680,7 +1708,7 @@ export function createUserRepository(
 
     async regenerateKey(id: string): Promise<{ apiKey: string }> {
       const apiKey = generateApiKey();
-      const apiKeyHash = await bcryptHash(apiKey, BCRYPT_ROUNDS);
+      const apiKeyHash = createHash('sha256').update(apiKey).digest('hex');
 
       await db
         .update(users)
@@ -1691,7 +1719,7 @@ export function createUserRepository(
     },
 
     async hashApiKey(apiKey: string): Promise<string> {
-      return bcryptHash(apiKey, BCRYPT_ROUNDS);
+      return createHash('sha256').update(apiKey).digest('hex');
     },
 
     async comparePassword(plain: string, hash: string): Promise<boolean> {

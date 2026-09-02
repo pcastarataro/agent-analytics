@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchApi } from '../api/client';
 import { CreateUserModal } from '../components/CreateUserModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -144,7 +145,12 @@ export function UsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                    {u.name}
+                    <Link
+                      to={`/users/${encodeURIComponent(u.id)}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {u.name}
+                    </Link>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                     {formatDate(u.createdAt)}

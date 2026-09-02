@@ -201,7 +201,7 @@ export function BranchDetailPage() {
                     <tr key={u.name} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-900">
                         <Link
-                          to={`/users/${encodeURIComponent(u.name)}`}
+                          to={`/users/${encodeURIComponent(u.userId)}`}
                           className="text-blue-600 hover:underline"
                         >
                           {u.name}

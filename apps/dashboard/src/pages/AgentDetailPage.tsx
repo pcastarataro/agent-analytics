@@ -132,6 +132,43 @@ export function AgentDetailPage() {
         </div>
       )}
 
+      {data.byUser.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <h3 className="mb-3 text-sm font-medium text-gray-700">Users</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-medium uppercase text-gray-500">
+                  <th className="px-3 py-2">User</th>
+                  <th className="px-3 py-2">Events</th>
+                  <th className="px-3 py-2">Total Cost</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {data.byUser.map((u) => (
+                  <tr key={u.userId} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-900">
+                      <Link
+                        to={`/users/${encodeURIComponent(u.userId)}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {u.name}
+                      </Link>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      {u.eventCount.toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                      ${u.totalCost.toFixed(4)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-sm font-medium text-gray-700">Tokens by Skill</h3>

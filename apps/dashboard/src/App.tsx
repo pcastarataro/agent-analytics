@@ -10,6 +10,7 @@ import { SessionDetailPage } from './pages/SessionsPage/SessionDetailPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { SkillsPage } from './pages/SkillsPage';
 import { UsersPage } from './pages/UsersPage';
+import { UserDetailPage } from './pages/UserDetailPage';
 import { LoginPage } from './pages/LoginPage';
 import { SkillDetailPage } from './pages/SkillDetailPage';
 import { DefinitionsPage } from './pages/DefinitionsPage';
@@ -61,6 +62,7 @@ export function App() {
               <Route path="/skills" element={<SkillsPage />} />
               <Route path="/skills/:skillName" element={<SkillDetailPage />} />
               <Route path="/users" element={<UsersPage />} />
+              <Route path="/users/:userId" element={<UserDetailPage />} />
               <Route path="/sessions" element={<SessionsListPage />} />
               <Route path="/sessions/:traceId" element={<SessionDetailPage />} />
               <Route path="/definitions" element={<DefinitionsPage />} />

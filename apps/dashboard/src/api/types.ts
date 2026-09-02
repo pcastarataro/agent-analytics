@@ -160,6 +160,7 @@ export interface AgentDetail {
   totalCachedTokens: number;
   distinctVersions: number;
   byVersion: Array<{ version: string; executionCount: number; successRate: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   tokensBySkill: Array<{ name: string; tokens: number }>;
   recentEvents: UsageEventDTO[];
@@ -180,6 +181,7 @@ export interface SkillDetail {
 
 export interface UserDetail {
   userId: string;
+  userName: string | null;
   totalEvents: number;
   totalCost: number;
   totalInputTokens: number;
@@ -246,7 +248,7 @@ export interface ProjectDetail {
   byBranch: Array<{ branch: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
   bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
-  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   recentEvents: UsageEventDTO[];
 }
@@ -279,7 +281,7 @@ export interface BranchDetail {
   byProject: Array<{ name: string; eventCount: number; totalCost: number }>;
   byAgent: Array<{ name: string; eventCount: number; totalCost: number }>;
   bySkill: Array<{ name: string; eventCount: number; totalCost: number }>;
-  byUser: Array<{ name: string; eventCount: number; totalCost: number }>;
+  byUser: Array<{ userId: string; name: string; eventCount: number; totalCost: number }>;
   eventsOverTime: Array<{ date: string; count: number }>;
   costByDate: Array<{ date: string; cost: number }>;
   recentEvents: UsageEventDTO[];
