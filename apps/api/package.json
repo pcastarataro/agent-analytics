@@ -5,9 +5,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@agent-analytics/database": "*",
-    "@agent-analytics/event-schema": "*",
-    "@agent-analytics/shared": "*",
+    "@agent-analytics/database": "workspace:*",
+    "@agent-analytics/event-schema": "workspace:*",
+    "@agent-analytics/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^4.21.0",

@@ -9,8 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agent-analytics/event-schema": "*",
-    "@agent-analytics/shared": "*",
+    "@agent-analytics/event-schema": "workspace:*",
+    "@agent-analytics/shared": "workspace:*",
     "zod": "^4.4.0"
   }
 }

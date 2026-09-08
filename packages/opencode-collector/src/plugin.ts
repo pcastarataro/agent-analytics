@@ -11,7 +11,7 @@
  * because `message.updated` may not fire in all OpenCode versions.
  * The `Session` object in `session.updated` carries accumulated cost and tokens.
  */
-import { createPlugin as createCollectorHooks } from '@agent-analytics/opencode-collector';
+import { createPlugin as createCollectorHooks } from './index';
 
 interface PluginInput {
   client: {
