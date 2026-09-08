@@ -13,7 +13,7 @@
  *   --api-key <k>  API key for authentication (required)
  *   --help, -h     Show this help message
  *
- * Installs to ~/.config/opencode/plugins/analytics.mjs
+ * Installs to ~/.config/opencode/plugins/analytics.ts
  * Creates ~/.config/opencode/analytics.json
  */
 
@@ -78,7 +78,7 @@ function main() {
   // Global OpenCode config directory
   const openCodeDir = join(homedir(), '.config', 'opencode');
   const pluginsDir = join(openCodeDir, 'plugins');
-  const pluginFile = join(pluginsDir, 'analytics.mjs');
+  const pluginFile = join(pluginsDir, 'analytics.ts');
   const configFile = join(openCodeDir, 'analytics.json');
 
   console.log(`Installing to: ${cyan(openCodeDir)}\n`);
@@ -100,7 +100,7 @@ function main() {
 
   try {
     cpSync(pluginSource, pluginFile);
-    console.log(green('✓ Installed analytics plugin → ~/.config/opencode/plugins/analytics.mjs'));
+    console.log(green('✓ Installed analytics plugin → ~/.config/opencode/plugins/analytics.ts'));
   } catch (err) {
     console.error(yellow('✗ Failed to copy plugin: ' + err.message));
     process.exit(1);
